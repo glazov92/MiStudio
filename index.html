@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Studio — студия красоты в Нижнем Новгороде</title>
+    <meta name="description" content="Студия красоты «Mi Studio» в Нижнем Новгороде. Косметология, массаж, макияж, нутрициолог, восковая депиляция. Запись онлайн.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-page="index">
+
+    <div id="header"></div>
+
+    <main>
+        <!-- Hero -->
+        <section class="hero">
+            <div class="container hero__grid">
+                <div class="hero__content">
+                    <h1 class="hero__title">Студия красоты <span>«Mi Studio»</span></h1>
+                    <p class="hero__subtitle">Уютная атмосфера, профессиональный уход, заметный результат</p>
+                    <div class="hero__actions">
+                        <a class="btn btn--accent" href="https://dikidi.net/2049120?p=0" target="_blank" rel="noopener">Записаться</a>
+                        <a class="btn btn--outline" href="services.html">Смотреть услуги</a>
+                    </div>
+                </div>
+                <div class="hero__media">
+                    <img class="hero__img" src="img/main-img.jpg" alt="Студия красоты Mi Studio" loading="eager">
+                </div>
+            </div>
+        </section>
+
+        <!-- Акции -->
+        <section class="section section--tight">
+            <div class="container">
+                <div class="section__head">
+                    <span class="section__dot"></span>
+                    <h2 class="section__title">Акции</h2>
+                </div>
+                <div class="promos__grid" id="promos-list"></div>
+            </div>
+        </section>
+
+        <!-- О нас -->
+        <section class="section">
+            <div class="container about__grid">
+                <div class="about__media">
+                    <img class="about__img" src="img/cta-modal.jpg" alt="О студии Mi Studio" loading="lazy">
+                </div>
+                <div class="about__content">
+                    <div class="section__head">
+                        <span class="section__dot"></span>
+                        <h2 class="section__title">О нас</h2>
+                    </div>
+                    <p class="about__text">Мы — пространство, где забота о себе становится ритуалом. В «Mi Studio» сочетаются научный подход и индивидуальный уход: искусство, профессионализм и передовые технологии, чтобы подчеркнуть вашу природную красоту и подарить ощущение гармонии.</p>
+                    <a class="btn btn--outline" href="contacts.html">Как нас найти</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Услуги -->
+        <section class="section">
+            <div class="container">
+                <div class="section__head">
+                    <span class="section__dot"></span>
+                    <h2 class="section__title">Услуги</h2>
+                </div>
+                <p class="section__sub">Косметология, массаж, макияж, нутрициолог и восковая депиляция — у опытных мастеров с прайс-листами.</p>
+                <div class="services__grid" id="services-preview" style="margin-top:28px"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="footer"></div>
+    <div id="popup-root"></div>
+    <div id="float-root"></div>
+
+    <script src="config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
