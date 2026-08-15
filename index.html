@@ -2,12 +2,20 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <script>
+    /* GitHub Pages project site: без <base> css/js ломаются на URL без / в конце */
+    (function () {
+        if (!/\.github\.io$/i.test(location.hostname)) return;
+        var first = location.pathname.split('/').filter(Boolean)[0];
+        if (!first || /\./.test(first)) return;
+        document.write('<base href="/' + first.replace(/"/g, '') + '/">');
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mi Studio — студия красоты в Нижнем Новгороде</title>
     <meta name="description" content="Студия красоты «Mi Studio» в Нижнем Новгороде. Косметология, массаж, макияж, нутрициолог, восковая депиляция. Запись онлайн.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=onest:300,400,500,600,700|space-grotesk:400,500,600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
@@ -38,12 +46,11 @@
                             <img src="img/cta-modal.jpg" alt="" loading="eager">
                         </figure>
                         <figure class="hero__plane hero__plane--mid">
-                            <img src="img/main-img.jpg" alt="Студия красоты Mi Studio" loading="eager">
+                            <img src="img/main-img.jpg" alt="Mi Studio" loading="eager">
                         </figure>
                         <figure class="hero__plane hero__plane--front">
                             <img src="img/makiyazh.jpg" alt="" loading="eager">
                         </figure>
-                        <div class="hero__glow" aria-hidden="true"></div>
                     </div>
                 </div>
             </div>
@@ -143,10 +150,10 @@
             <div class="section__atmosphere section__atmosphere--contacts" aria-hidden="true"></div>
             <span class="grotesk-mark grotesk-mark--right" aria-hidden="true">04</span>
             <div class="container">
-                <div class="section__intro section__intro--center">
+                <div class="section__intro">
                     <p class="section__eyebrow"><span class="section__index">04</span> Связь</p>
                     <h2 class="section__title section__title--display">Контакты</h2>
-                    <div class="grotesk-rule grotesk-rule--center" aria-hidden="true"></div>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
                     <p class="section__sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
                 </div>
 

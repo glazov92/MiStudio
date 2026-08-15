@@ -2,12 +2,19 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <script>
+    (function () {
+        if (!/\.github\.io$/i.test(location.hostname)) return;
+        var first = location.pathname.split('/').filter(Boolean)[0];
+        if (!first || /\./.test(first)) return;
+        document.write('<base href="/' + first.replace(/"/g, '') + '/">');
+    })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Контакты — Mi Studio</title>
     <meta name="description" content="Контакты студии красоты «Mi Studio»: адрес, телефоны, часы работы, как добраться.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=onest:300,400,500,600,700|space-grotesk:400,500,600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
