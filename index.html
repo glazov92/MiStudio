@@ -7,7 +7,8 @@
     <meta name="description" content="Студия красоты «Mi Studio» в Нижнем Новгороде. Косметология, массаж, макияж, нутрициолог, восковая депиляция. Запись онлайн.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Onest:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-page="index">
@@ -16,59 +17,164 @@
 
     <main>
         <!-- Hero -->
-        <section class="hero">
-            <div class="container hero__grid">
-                <div class="hero__content">
-                    <h1 class="hero__title">Студия красоты <span>«Mi Studio»</span></h1>
-                    <p class="hero__subtitle">Уютная атмосфера, профессиональный уход, заметный результат</p>
+        <section class="hero hero--stage" aria-label="Mi Studio">
+            <div class="hero__atmosphere" aria-hidden="true"></div>
+            <div class="container hero__inner">
+                <div class="hero__copy">
+                    <p class="hero__meta"><span>NN</span> · beauty atelier</p>
+                    <p class="hero__brand">Mi<span>Studio</span></p>
+                    <h1 class="hero__title">Красота как ритуал</h1>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
+                    <p class="hero__subtitle">Уютная атмосфера, профессиональный уход и заметный результат в Нижнем Новгороде</p>
                     <div class="hero__actions">
-                        <a class="btn btn--accent" href="https://dikidi.net/2049120?p=0" target="_blank" rel="noopener">Записаться</a>
-                        <a class="btn btn--outline" href="services.html">Смотреть услуги</a>
+                        <button type="button" class="btn btn--accent" data-open-popup>Записаться</button>
+                        <a class="btn btn--outline" href="#services">Смотреть услуги</a>
                     </div>
                 </div>
-                <div class="hero__media">
-                    <img class="hero__img" src="img/main-img.jpg" alt="Студия красоты Mi Studio" loading="eager">
+
+                <div class="hero__stage" data-hero-stage>
+                    <div class="hero__orbit" data-hero-orbit>
+                        <figure class="hero__plane hero__plane--back">
+                            <img src="img/cta-modal.jpg" alt="" loading="eager">
+                        </figure>
+                        <figure class="hero__plane hero__plane--mid">
+                            <img src="img/main-img.jpg" alt="Студия красоты Mi Studio" loading="eager">
+                        </figure>
+                        <figure class="hero__plane hero__plane--front">
+                            <img src="img/makiyazh.jpg" alt="" loading="eager">
+                        </figure>
+                        <div class="hero__glow" aria-hidden="true"></div>
+                    </div>
                 </div>
             </div>
+            <a class="hero__scroll" href="#services" aria-label="Дальше">
+                <span>Листать</span>
+            </a>
         </section>
 
         <!-- Акции -->
-        <section class="section section--tight">
+        <section class="section section--promos" id="promos" aria-labelledby="promos-title">
+            <div class="promos__glow" aria-hidden="true"></div>
             <div class="container">
-                <div class="section__head">
-                    <span class="section__dot"></span>
-                    <h2 class="section__title">Акции</h2>
+                <div class="section__intro section__intro--promos">
+                    <p class="section__eyebrow"><span class="section__index">★</span> Выгодные предложения</p>
+                    <h2 class="section__title section__title--display" id="promos-title">Акции студии</h2>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
+                    <p class="section__sub">Специальные условия, которые хочется успеть — нажмите на карточку, чтобы оставить заявку.</p>
                 </div>
-                <div class="promos__grid" id="promos-list"></div>
+            </div>
+            <div class="promo-marquee" id="promos-list" aria-label="Лента акций"></div>
+            <p class="promos__hint">Листайте ленту · нажмите карточку, чтобы записаться</p>
+        </section>
+
+        <!-- Услуги -->
+        <section class="section section--services" id="services">
+            <div class="section__atmosphere section__atmosphere--services" aria-hidden="true"></div>
+            <span class="grotesk-mark" aria-hidden="true">01</span>
+            <div class="container">
+                <div class="section__intro">
+                    <p class="section__eyebrow"><span class="section__index">01</span> Меню заботы</p>
+                    <h2 class="section__title section__title--display">Услуги студии</h2>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
+                    <p class="section__sub">Косметология, массаж, макияж, нутрициолог и восковая депиляция — у опытных мастеров с прозрачными прайсами. Нажмите на карточку, чтобы открыть мастеров и прайс.</p>
+                </div>
+            </div>
+            <div class="services-rail" id="services-rail">
+                <button type="button" class="rail-arrow rail-arrow--prev" data-rail-prev aria-label="Назад">
+                    <span aria-hidden="true">←</span>
+                </button>
+                <div class="services-rail__viewport">
+                    <div class="services-rail__track" id="services-preview"></div>
+                </div>
+                <button type="button" class="rail-arrow rail-arrow--next" data-rail-next aria-label="Вперёд">
+                    <span aria-hidden="true">→</span>
+                </button>
             </div>
         </section>
 
         <!-- О нас -->
-        <section class="section">
+        <section class="section section--about" id="about">
+            <div class="section__atmosphere section__atmosphere--about" aria-hidden="true"></div>
+            <span class="grotesk-mark grotesk-mark--right" aria-hidden="true">02</span>
             <div class="container about__grid">
                 <div class="about__media">
-                    <img class="about__img" src="img/cta-modal.jpg" alt="О студии Mi Studio" loading="lazy">
+                    <div class="about__frame">
+                        <img class="about__img" src="img/cta-modal.jpg" alt="О студии Mi Studio" loading="lazy">
+                        <div class="about__glow" aria-hidden="true"></div>
+                    </div>
                 </div>
                 <div class="about__content">
-                    <div class="section__head">
-                        <span class="section__dot"></span>
-                        <h2 class="section__title">О нас</h2>
-                    </div>
-                    <p class="about__text">Мы — пространство, где забота о себе становится ритуалом. В «Mi Studio» сочетаются научный подход и индивидуальный уход: искусство, профессионализм и передовые технологии, чтобы подчеркнуть вашу природную красоту и подарить ощущение гармонии.</p>
-                    <a class="btn btn--outline" href="contacts.html">Как нас найти</a>
+                    <p class="section__eyebrow"><span class="section__index">02</span> О студии</p>
+                    <h2 class="section__title section__title--display">Пространство<br>гармонии</h2>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
+                    <p class="about__text">Мы — место, где забота о себе становится ритуалом. В «Mi Studio» сочетаются научный подход и индивидуальный уход: искусство, профессионализм и передовые технологии, чтобы подчеркнуть вашу природную красоту.</p>
+                    <a class="btn btn--outline" href="#contacts">Как нас найти</a>
                 </div>
             </div>
         </section>
 
-        <!-- Услуги -->
-        <section class="section">
+        <!-- Портфолио -->
+        <section class="section section--portfolio" id="portfolio">
+            <div class="section__atmosphere section__atmosphere--portfolio" aria-hidden="true"></div>
+            <span class="grotesk-mark" aria-hidden="true">03</span>
             <div class="container">
-                <div class="section__head">
-                    <span class="section__dot"></span>
-                    <h2 class="section__title">Услуги</h2>
+                <div class="section__intro">
+                    <p class="section__eyebrow"><span class="section__index">03</span> Работы</p>
+                    <h2 class="section__title section__title--display">Портфолио</h2>
+                    <div class="grotesk-rule" aria-hidden="true"></div>
+                    <p class="section__sub">Работы наших мастеров. Больше примеров — в сообществе студии ВКонтакте и Telegram.</p>
                 </div>
-                <p class="section__sub">Косметология, массаж, макияж, нутрициолог и восковая депиляция — у опытных мастеров с прайс-листами.</p>
-                <div class="services__grid" id="services-preview" style="margin-top:28px"></div>
+            </div>
+            <div class="portfolio-rail" id="portfolio-rail">
+                <button type="button" class="rail-arrow rail-arrow--prev" data-rail-prev aria-label="Назад">
+                    <span aria-hidden="true">←</span>
+                </button>
+                <div class="portfolio-rail__viewport">
+                    <div class="portfolio-rail__track" id="gallery"></div>
+                </div>
+                <button type="button" class="rail-arrow rail-arrow--next" data-rail-next aria-label="Вперёд">
+                    <span aria-hidden="true">→</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- Контакты -->
+        <section class="section section--contacts" id="contacts">
+            <div class="section__atmosphere section__atmosphere--contacts" aria-hidden="true"></div>
+            <span class="grotesk-mark grotesk-mark--right" aria-hidden="true">04</span>
+            <div class="container">
+                <div class="section__intro section__intro--center">
+                    <p class="section__eyebrow"><span class="section__index">04</span> Связь</p>
+                    <h2 class="section__title section__title--display">Контакты</h2>
+                    <div class="grotesk-rule grotesk-rule--center" aria-hidden="true"></div>
+                    <p class="section__sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
+                </div>
+
+                <div class="contacts-layout">
+                    <div class="contacts-panel">
+                        <div class="contacts-panel__item">
+                            <span class="contacts-panel__label">Адрес</span>
+                            <span class="contacts-panel__value" id="c-address"></span>
+                        </div>
+                        <div class="contacts-panel__item">
+                            <span class="contacts-panel__label">Телефоны</span>
+                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone1" href="#"></a>
+                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone2" href="#"></a>
+                        </div>
+                        <div class="contacts-panel__item">
+                            <span class="contacts-panel__label">Часы работы</span>
+                            <span class="contacts-panel__value" id="c-schedule"></span>
+                        </div>
+                        <div class="contacts-panel__item">
+                            <span class="contacts-panel__label">Соцсети</span>
+                            <div class="socials socials--contacts" id="home-socials"></div>
+                        </div>
+                        <button class="btn btn--accent contacts-panel__cta" data-open-popup>Записаться</button>
+                    </div>
+                    <div class="contacts-map map map--home">
+                        <iframe id="c-map" title="Mi Studio на карте" loading="lazy" allowfullscreen></iframe>
+                    </div>
+                </div>
             </div>
         </section>
     </main>
@@ -77,6 +183,7 @@
     <div id="popup-root"></div>
     <div id="float-root"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/browser/overlayscrollbars.browser.es6.min.js"></script>
     <script src="config.js"></script>
     <script src="js/data.js"></script>
     <script src="js/main.js"></script>
