@@ -6,100 +6,198 @@
 
 const WA_PHONE = CONFIG.phones[0].replace(/[^0-9]/g, '');
 
+const FLAG_CDN = 'https://hatscripts.github.io/circle-flags/flags';
+
+const PHONE_COUNTRIES = [
+    { code: 'RU', iso: 'ru', dial: '7', name: 'Россия', mask: '(###) ###-##-##', len: 10 },
+    { code: 'KZ', iso: 'kz', dial: '7', name: 'Казахстан', mask: '(###) ###-##-##', len: 10 },
+    { code: 'BY', iso: 'by', dial: '375', name: 'Беларусь', mask: '## ###-##-##', len: 9 },
+    { code: 'AM', iso: 'am', dial: '374', name: 'Армения', mask: '## ###-###', len: 8 },
+    { code: 'KG', iso: 'kg', dial: '996', name: 'Кыргызстан', mask: '### ##-##-##', len: 9 },
+    { code: 'TJ', iso: 'tj', dial: '992', name: 'Таджикистан', mask: '## ###-##-##', len: 9 },
+    { code: 'UZ', iso: 'uz', dial: '998', name: 'Узбекистан', mask: '## ###-##-##', len: 9 }
+];
+
+const MONTHS_RU = [
+    'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+    'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+];
+
+const leadFormState = {
+    contactType: 'phone',
+    country: PHONE_COUNTRIES[0],
+    services: [],
+    promos: [],
+    dates: [],
+    viewYear: null,
+    viewMonth: null
+};
+
+function flagUrl(iso) {
+    return `${FLAG_CDN}/${String(iso).toLowerCase()}.svg`;
+}
+
+function flagImgHtml(iso, name, idAttr) {
+    const id = idAttr ? ` id="${idAttr}"` : '';
+    return `<img class="phone-flag"${id} src="${flagUrl(iso)}" width="30" height="30" alt="${name}" decoding="async">`;
+}
+
 /* --------------------------------------------------------------------------
    Рендер общих компонентов
    -------------------------------------------------------------------------- */
 
 function renderHeader(activePage) {
     const navItems = [
-        { href: 'index.html', label: 'Главная', key: 'index' },
-        { href: 'services.html', label: 'Услуги', key: 'services', dropdown: true },
-        { href: 'portfolio.html', label: 'Портфолио', key: 'portfolio' },
-        { href: 'contacts.html', label: 'Контакты', key: 'contacts' }
+        { href: 'index.html#services', label: 'Услуги', key: 'services' },
+        { href: 'index.html#about', label: 'О нас', key: 'about' },
+        { href: 'index.html#portfolio', label: 'Портфолио', key: 'portfolio' },
+        { href: 'index.html#contacts', label: 'Контакты', key: 'contacts' }
     ];
 
-    const nav = navItems.map(item => {
+    const navLinks = navItems.map(item => {
         const cls = item.key === activePage ? 'active' : '';
-        if (item.dropdown) {
-            const links = SERVICES.map(s =>
-                `<a href="services.html#${s.id}">${s.title}</a>`).join('');
-            return `<div class="has-dropdown" data-dropdown>
-                        <a href="${item.href}" class="${cls}">${item.label}</a>
-                        <div class="dropdown">${links}</div>
-                    </div>`;
-        }
         return `<a href="${item.href}" class="${cls}">${item.label}</a>`;
     }).join('');
+
+    const phones = CONFIG.phonesDisplay.map((p, i) =>
+        `<a class="header__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">
+            <span class="header__phone-label">${i === 0 ? 'Студия' : 'Запись'}</span>
+            <span class="header__phone-num">${p}</span>
+        </a>`).join('');
+
+    const mobilePhones = CONFIG.phonesDisplay.map((p, i) =>
+        `<a class="mobile-nav__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">${p}</a>`
+    ).join('');
 
     document.getElementById('header').innerHTML = `
         <header class="header">
             <div class="container header__inner">
                 <a href="index.html" class="logo">Mi<span>Studio</span></a>
-                <nav class="nav" id="nav">${nav}</nav>
+                <nav class="nav nav--desktop" id="nav">${navLinks}</nav>
                 <div class="header__right">
-                    <div class="header__phones">
-                        ${CONFIG.phonesDisplay.map(p => `<a href="tel:+${p.replace(/[^0-9]/g, '')}">${p}</a>`).join('')}
-                    </div>
-                    <button class="btn btn--outline btn--sm" data-open-popup>Связаться</button>
-                    <button class="burger" id="burger" aria-label="Меню"><span></span><span></span><span></span></button>
+                    <div class="header__phones">${phones}</div>
+                    <button class="btn btn--outline btn--sm header__cta" data-open-popup>Связаться</button>
+                    <button class="burger" id="burger" type="button" aria-label="Меню" aria-expanded="false" aria-controls="mobile-nav">
+                        <span></span><span></span><span></span>
+                    </button>
                 </div>
             </div>
-        </header>`;
+        </header>
+        <div class="mobile-nav" id="mobile-nav" hidden>
+            <div class="mobile-nav__backdrop" data-close-nav></div>
+            <div class="mobile-nav__panel" role="dialog" aria-modal="true" aria-label="Меню">
+                <button type="button" class="mobile-nav__close" data-close-nav aria-label="Закрыть меню">&times;</button>
+                <nav class="mobile-nav__links">${navLinks}</nav>
+                <div class="mobile-nav__phones">${mobilePhones}</div>
+                <button type="button" class="btn btn--accent mobile-nav__cta" data-open-popup data-close-nav>Записаться</button>
+            </div>
+        </div>`;
 
     const burger = document.getElementById('burger');
-    const navEl = document.getElementById('nav');
-    const dropdowns = document.querySelectorAll('[data-dropdown]');
+    const mobileNav = document.getElementById('mobile-nav');
+    const panel = mobileNav.querySelector('.mobile-nav__panel');
+    let navClosing = false;
 
-    burger.addEventListener('click', () => {
-        burger.classList.toggle('is-open');
-        navEl.classList.toggle('is-open');
-        document.body.classList.toggle('nav-open');
+    function setNavOpen(open) {
+        if (open) {
+            navClosing = false;
+            mobileNav.hidden = false;
+            // reflow, затем класс — чтобы сыграла CSS-анимация
+            void mobileNav.offsetWidth;
+            requestAnimationFrame(() => {
+                burger.classList.add('is-open');
+                burger.setAttribute('aria-expanded', 'true');
+                mobileNav.classList.add('is-open');
+                document.body.classList.add('nav-open');
+            });
+            return;
+        }
+
+        if (mobileNav.hidden && !mobileNav.classList.contains('is-open')) return;
+
+        burger.classList.remove('is-open');
+        burger.setAttribute('aria-expanded', 'false');
+        mobileNav.classList.remove('is-open');
+        document.body.classList.remove('nav-open');
+        navClosing = true;
+
+        const finish = () => {
+            if (!navClosing) return;
+            navClosing = false;
+            mobileNav.hidden = true;
+        };
+
+        const onEnd = e => {
+            if (e.target !== panel) return;
+            panel.removeEventListener('transitionend', onEnd);
+            finish();
+        };
+        panel.addEventListener('transitionend', onEnd);
+        setTimeout(finish, 400);
+    }
+
+    burger.addEventListener('click', () => setNavOpen(!burger.classList.contains('is-open')));
+
+    mobileNav.addEventListener('click', e => {
+        if (e.target.closest('[data-close-nav]')) setNavOpen(false);
+        if (e.target.closest('a')) setNavOpen(false);
     });
 
-    dropdowns.forEach(d => d.addEventListener('click', e => {
-        if (window.innerWidth <= 768) d.classList.toggle('is-open');
-    }));
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) setNavOpen(false);
+    });
+}
+
+function socialLinksHtml(iconSize = 18) {
+    return `
+        <a href="${CONFIG.vkUrl}" target="_blank" rel="noopener" aria-label="ВКонтакте">
+            <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 576 512"><path fill="currentColor" d="M545 117.7c3.7-12.5 0-21.7-17.8-21.7h-58.9c-15 0-21.9 7.9-25.6 16.7 0 0-30 73.1-72.4 120.5-13.7 13.7-20 18.1-27.5 18.1-3.7 0-9.4-4.4-9.4-16.9V117.7c0-15-4.2-21.7-16.6-21.7h-92.6c-9.4 0-15 7-15 13.5 0 14.2 21.2 17.5 23.4 57.5v86.8c0 19-3.4 22.5-10.9 22.5-20 0-68.6-73.4-97.4-157.4-5.8-16.3-11.5-22.9-26.6-22.9H38.8c-16.8 0-20.2 7.9-20.2 16.7 0 15.6 20 93.1 93.1 195.5C160.4 378.1 229 416 291.4 416c37.5 0 42.1-8.4 42.1-22.9 0-66.8-3.4-73.1 15.4-73.1 8.7 0 23.7 4.4 58.7 38.1 40 40 46.6 57.9 69 57.9h58.9c16.8 0 25.3-8.4 20.4-25-11.2-34.9-86.9-106.7-90.3-111.5-8.7-11.2-6.2-16.2 0-26.2.1-.1 72-101.3 79.4-135.6z"/></svg>
+        </a>
+        <a href="${CONFIG.tgUrl}" target="_blank" rel="noopener" aria-label="Telegram">
+            <svg width="${iconSize}" height="${iconSize}" viewBox="0 0 448 512"><path fill="currentColor" d="M446.7 98.6l-67.6 318.8c-5.1 22.5-18.4 28.1-37.3 17.5l-103-75.9-49.7 47.8c-5.5 5.5-10.1 10.1-20.7 10.1l7.4-104.9 190.9-172.5c8.3-7.4-1.8-11.5-12.9-4.1L117.8 284 16.2 252.2c-22.1-6.9-22.5-22.1 4.6-32.7L418.2 66.4c18.4-6.9 34.5 4.1 28.5 32.2z"/></svg>
+        </a>
+        <a class="socials__dikidi" href="${CONFIG.dikidiUrl}" target="_blank" rel="noopener" aria-label="Онлайн-запись в DiKiDi">
+            <span class="socials__dikidi-mark" aria-hidden="true">D</span>
+            <span class="socials__dikidi-text">DiKiDi</span>
+        </a>`;
 }
 
 function renderFooter() {
-    const phones = CONFIG.phonesDisplay.map(p =>
-        `<a href="tel:+${p.replace(/[^0-9]/g, '')}">${p}</a>`).join('');
+    const phones = CONFIG.phonesDisplay.map((p, i) =>
+        `<a class="footer__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">${p}</a>`).join('');
 
     document.getElementById('footer').innerHTML = `
         <footer class="footer">
             <div class="container">
-                <div class="footer__grid">
-                    <div class="footer__col">
+                <div class="footer__top">
+                    <div class="footer__brand">
                         <a href="index.html" class="footer__logo">Mi<span>Studio</span></a>
-                        <p class="footer__desc">Студия красоты «Mi Studio» в Нижнем Новгороде.
-                        Уютная атмосфера, профессиональный уход, заметный результат.</p>
+                        <div class="grotesk-rule footer__rule" aria-hidden="true"></div>
+                        <p class="footer__desc">Студия красоты в Нижнем Новгороде — уютная атмосфера, профессиональный уход и заметный результат.</p>
                     </div>
-                    <div class="footer__col">
-                        <div class="footer__title">Разделы</div>
-                        <ul class="footer__links">
-                            <li><a href="index.html">Главная</a></li>
-                            <li><a href="services.html">Услуги</a></li>
-                            <li><a href="portfolio.html">Портфолио</a></li>
-                            <li><a href="contacts.html">Контакты</a></li>
-                        </ul>
-                    </div>
-                    <div class="footer__col">
-                        <div class="footer__title">Контакты</div>
-                        <div class="footer__contact">
-                            <span>${CONFIG.address}</span>
-                            ${phones}
-                            <span>${CONFIG.schedule}</span>
+                    <div class="footer__cols">
+                        <div class="footer__col">
+                            <div class="footer__title">Разделы</div>
+                            <ul class="footer__links">
+                                <li><a href="index.html#services">Услуги</a></li>
+                                <li><a href="index.html#about">О нас</a></li>
+                                <li><a href="index.html#portfolio">Портфолио</a></li>
+                                <li><a href="index.html#contacts">Контакты</a></li>
+                            </ul>
                         </div>
-                    </div>
-                    <div class="footer__col">
-                        <div class="footer__title">Мы на связи</div>
-                        <div class="socials">
-                            <a href="${CONFIG.vkUrl}" target="_blank" rel="noopener" aria-label="ВКонтакте">
-                                <svg width="18" height="18" viewBox="0 0 576 512"><path fill="currentColor" d="M545 117.7c3.7-12.5 0-21.7-17.8-21.7h-58.9c-15 0-21.9 7.9-25.6 16.7 0 0-30 73.1-72.4 120.5-13.7 13.7-20 18.1-27.5 18.1-3.7 0-9.4-4.4-9.4-16.9V117.7c0-15-4.2-21.7-16.6-21.7h-92.6c-9.4 0-15 7-15 13.5 0 14.2 21.2 17.5 23.4 57.5v86.8c0 19-3.4 22.5-10.9 22.5-20 0-68.6-73.4-97.4-157.4-5.8-16.3-11.5-22.9-26.6-22.9H38.8c-16.8 0-20.2 7.9-20.2 16.7 0 15.6 20 93.1 93.1 195.5C160.4 378.1 229 416 291.4 416c37.5 0 42.1-8.4 42.1-22.9 0-66.8-3.4-73.1 15.4-73.1 8.7 0 23.7 4.4 58.7 38.1 40 40 46.6 57.9 69 57.9h58.9c16.8 0 25.3-8.4 20.4-25-11.2-34.9-86.9-106.7-90.3-111.5-8.7-11.2-6.2-16.2 0-26.2.1-.1 72-101.3 79.4-135.6z"/></svg>
-                            </a>
-                            <a href="${CONFIG.tgUrl}" target="_blank" rel="noopener" aria-label="Telegram">
-                                <svg width="18" height="18" viewBox="0 0 448 512"><path fill="currentColor" d="M446.7 98.6l-67.6 318.8c-5.1 22.5-18.4 28.1-37.3 17.5l-103-75.9-49.7 47.8c-5.5 5.5-10.1 10.1-20.7 10.1l7.4-104.9 190.9-172.5c8.3-7.4-1.8-11.5-12.9-4.1L117.8 284 16.2 252.2c-22.1-6.9-22.5-22.1 4.6-32.7L418.2 66.4c18.4-6.9 34.5 4.1 28.5 32.2z"/></svg>
-                            </a>
+                        <div class="footer__col">
+                            <div class="footer__title">Контакты</div>
+                            <div class="footer__contact">
+                                <span class="footer__meta">${CONFIG.address}</span>
+                                <div class="footer__phones">${phones}</div>
+                                <span class="footer__meta">${CONFIG.schedule}</span>
+                            </div>
+                        </div>
+                        <div class="footer__col">
+                            <div class="footer__title">Мы на связи</div>
+                            <div class="socials">
+                                ${socialLinksHtml(18)}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -112,7 +210,17 @@ function renderFooter() {
 }
 
 function renderPopup() {
-    const serviceOptions = SERVICES.map(s => `<option value="${s.title}">${s.title}</option>`).join('');
+    const serviceItems = SERVICES.map(s => `
+        <label class="msel__option">
+            <input type="checkbox" value="${s.title}">
+            <span>${s.title}</span>
+        </label>`).join('');
+
+    const countryItems = PHONE_COUNTRIES.map((c, i) => `
+        <button type="button" class="phone-dd__item${i === 0 ? ' is-active' : ''}" data-country="${c.code}" title="${c.name}" aria-label="${c.name} +${c.dial}" role="option">
+            ${flagImgHtml(c.iso, c.name)}
+            <span class="phone-dd__dial">+${c.dial}</span>
+        </button>`).join('');
 
     document.getElementById('popup-root').innerHTML = `
         <div class="popup" id="lead-popup">
@@ -123,34 +231,118 @@ function renderPopup() {
                 <p class="popup__subtitle">Оставьте контакты — мы свяжемся и подтвердим запись</p>
                 <form class="form" id="lead-form" novalidate>
                     <div class="form__field">
-                        <label class="form__label" for="lead-name">Имя</label>
-                        <input class="form__input" id="lead-name" name="name" type="text" required placeholder="Как к вам обращаться">
+                        <label class="form__label" for="lead-name">Имя <span class="form__req">*</span></label>
+                        <input class="form__input" id="lead-name" name="name" type="text" required autocomplete="name" placeholder="Как к вам обращаться">
                     </div>
+
                     <div class="form__field">
-                        <label class="form__label" for="lead-phone">Телефон</label>
-                        <input class="form__input" id="lead-phone" name="phone" type="tel" required placeholder="+7 (___) ___-__-__">
+                        <span class="form__label">Как связаться</span>
+                        <div class="contact-tabs" role="tablist">
+                            <button type="button" class="contact-tabs__btn is-active" data-contact-type="phone" role="tab" aria-selected="true">Телефон <span class="form__req">*</span></button>
+                            <button type="button" class="contact-tabs__btn" data-contact-type="email" role="tab" aria-selected="false">Почта</button>
+                            <button type="button" class="contact-tabs__btn" data-contact-type="telegram" role="tab" aria-selected="false">Telegram</button>
+                        </div>
+
+                        <div class="contact-pane is-active" data-pane="phone">
+                            <div class="phone-field">
+                                <div class="phone-country">
+                                    <button type="button" class="phone-country__btn" id="phone-country-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Страна номера">
+                                        ${flagImgHtml('ru', 'Россия', 'phone-flag')}
+                                        <span class="phone-dial" id="phone-dial">+7</span>
+                                        <span class="phone-country__caret" aria-hidden="true"></span>
+                                    </button>
+                                    <div class="phone-dd" id="phone-country-dd" hidden role="listbox">
+                                        <div class="phone-dd__scroll" id="phone-country-scroll">
+                                            ${countryItems}
+                                        </div>
+                                    </div>
+                                </div>
+                                <input class="form__input phone-field__input" id="lead-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="(___) ___-__-__" aria-label="Номер телефона">
+                            </div>
+                        </div>
+
+                        <div class="contact-pane" data-pane="email" hidden>
+                            <input class="form__input" id="lead-email" name="email" type="email" inputmode="email" autocomplete="email" placeholder="name@example.com" aria-label="Электронная почта">
+                        </div>
+
+                        <div class="contact-pane" data-pane="telegram" hidden>
+                            <div class="tg-field">
+                                <span class="tg-field__at" aria-hidden="true">@</span>
+                                <input class="form__input tg-field__input" id="lead-telegram" name="telegram" type="text" inputmode="text" autocomplete="username" placeholder="username" aria-label="Telegram username" maxlength="32">
+                            </div>
+                        </div>
                     </div>
+
+                    <div class="form__field" id="lead-promos-field" hidden>
+                        <span class="form__label">Акции</span>
+                        <div class="msel msel--promos" id="lead-promos">
+                            <div class="msel__badges" id="promo-badges"></div>
+                            <p class="msel__hint">Выбранные акции попадут в заявку</p>
+                        </div>
+                    </div>
+
                     <div class="form__field">
-                        <label class="form__label" for="lead-service">Услуга</label>
-                        <select class="form__select" id="lead-service" name="service">
-                            <option value="">Не выбрано</option>
-                            ${serviceOptions}
-                        </select>
+                        <span class="form__label">Услуги <span class="form__req">*</span></span>
+                        <div class="msel" id="lead-services">
+                            <div class="msel__badges" id="msel-badges"></div>
+                            <button type="button" class="msel__trigger form__input" id="msel-trigger" aria-haspopup="listbox" aria-expanded="false">
+                                <span id="msel-placeholder">Выберите услуги</span>
+                                <span class="msel__caret" aria-hidden="true"></span>
+                            </button>
+                            <div class="msel__dropdown" id="msel-dropdown" hidden role="listbox">
+                                ${serviceItems}
+                            </div>
+                        </div>
                     </div>
+
                     <div class="form__field">
-                        <label class="form__label" for="lead-time">Желаемое время</label>
-                        <input class="form__input" id="lead-time" name="visit_time" type="datetime-local">
+                        <span class="form__label">Желаемые даты <span class="form__req">*</span></span>
+                        <div class="dtp" id="lead-datetime">
+                            <div class="dtp__badges" id="dtp-badges"></div>
+                            <button type="button" class="dtp__trigger form__input" id="dtp-trigger" aria-haspopup="dialog" aria-expanded="false">
+                                <span id="dtp-display">Выберите даты</span>
+                                <span class="dtp__icon" aria-hidden="true">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+                                </span>
+                            </button>
+                        </div>
                     </div>
+
                     <div class="form__field">
                         <label class="form__label" for="lead-comment">Комментарий</label>
                         <textarea class="form__textarea" id="lead-comment" name="comment" placeholder="Пожелания, вопросы..."></textarea>
                     </div>
-                    <button type="submit" class="btn btn--accent btn--block">Отправить заявку</button>
+                    <div class="form__actions">
+                        <button type="submit" class="btn btn--accent btn--block">Отправить заявку</button>
+                        <a class="btn btn--outline btn--block" href="${CONFIG.dikidiUrl}" target="_blank" rel="noopener">Онлайн-запись</a>
+                    </div>
                     <div class="form__status" id="lead-status"></div>
-                    <p class="form__note">Оставляя заявку, вы принимаете условия пользовательского соглашения и даёте согласие на обработку персональных данных.</p>
+                    <p class="form__note">Оставляя заявку, вы принимаете условия <a href="#" data-open-policy>пользовательского соглашения</a> и даёте согласие на обработку персональных данных.</p>
                 </form>
             </div>
         </div>
+
+        <div class="popup popup--calendar" id="calendar-popup">
+            <div class="popup__overlay" data-close-calendar></div>
+            <div class="popup__container popup__container--calendar">
+                <button class="popup__close" data-close-calendar aria-label="Закрыть">&times;</button>
+                <div class="popup__title">Желаемые даты</div>
+                <p class="popup__subtitle">Можно выбрать несколько дней</p>
+                <div class="dtp-mini">
+                    <div class="dtp__nav">
+                        <button type="button" class="dtp__nav-btn" id="dtp-prev" aria-label="Предыдущий месяц">&#10094;</button>
+                        <div class="dtp__month" id="dtp-month"></div>
+                        <button type="button" class="dtp__nav-btn" id="dtp-next" aria-label="Следующий месяц">&#10095;</button>
+                    </div>
+                    <div class="dtp__weekdays">
+                        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                    </div>
+                    <div class="dtp__days" id="dtp-days"></div>
+                </div>
+                <button type="button" class="btn btn--accent btn--block" data-close-calendar style="margin-top:14px">Готово</button>
+            </div>
+        </div>
+
         <div class="lightbox" id="lightbox">
             <button class="lightbox__close" data-close-lightbox>&times;</button>
             <button class="lightbox__btn lightbox__btn--prev" data-lb-prev>&#10094;</button>
@@ -172,38 +364,58 @@ function renderPopup() {
         </div>
         <div class="popup" id="service-popup">
             <div class="popup__overlay" data-close-service></div>
-            <div class="popup__container popup__container--wide">
+            <div class="popup__container popup__container--service">
                 <button class="popup__close" data-close-service aria-label="Закрыть">&times;</button>
                 <div id="service-popup-content"></div>
             </div>
         </div>`;
 
     document.getElementById('lead-form').addEventListener('submit', onLeadSubmit);
+    initLeadForm();
 }
 
 function renderFloats() {
-    const wa = `https://wa.me/${WA_PHONE}`;
-    const tg = CONFIG.tgUrl;
-    const tel = `tel:+${WA_PHONE}`;
-    const msg = encodeURIComponent('Здравствуйте! Хочу записаться в Mi Studio');
+    const root = document.getElementById('float-root') || (() => {
+        const el = document.createElement('div');
+        el.id = 'float-root';
+        document.body.appendChild(el);
+        return el;
+    })();
 
-    document.getElementById('float-root').innerHTML = `
-        <div class="float-buttons">
-            <a class="float-btn float-btn--wa" href="${wa}?text=${msg}" target="_blank" rel="noopener" aria-label="WhatsApp">
-                <svg width="24" height="24" viewBox="0 0 448 512"><path fill="currentColor" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3L72 359.2l-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-32.6-16.3-54-29.1-75.5-66-5.7-9.8 5.7-9.1 16.3-30.3 1.8-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
-            </a>
-            <a class="float-btn float-btn--tg" href="${tg}" target="_blank" rel="noopener" aria-label="Telegram">
-                <svg width="24" height="24" viewBox="0 0 448 512"><path fill="currentColor" d="M446.7 98.6l-67.6 318.8c-5.1 22.5-18.4 28.1-37.3 17.5l-103-75.9-49.7 47.8c-5.5 5.5-10.1 10.1-20.7 10.1l7.4-104.9 190.9-172.5c8.3-7.4-1.8-11.5-12.9-4.1L117.8 284 16.2 252.2c-22.1-6.9-22.5-22.1 4.6-32.7L418.2 66.4c18.4-6.9 34.5 4.1 28.5 32.2z"/></svg>
-            </a>
-            <a class="float-btn float-btn--call" href="${tel}" aria-label="Позвонить">
-                <svg width="24" height="24" viewBox="0 0 512 512"><path fill="currentColor" d="M497 39.2L479.7 8.2c-3.2-4.5-8.2-7.1-13.6-7.2-5.3-.1-10.4 2.2-13.8 6.5l-70.6 88.9c-4.4 5.5-5.8 12.7-3.6 19.5l38 92.3c-16.2 82-76.4 141.4-157.4 157.3l-91.5-37.9c-6.8-2.8-14.3-1.4-19.7 3.6l-89.4 70.9c-4.3 3.4-6.7 8.5-6.7 13.9-.1 5.3 2.2 10.4 6.4 13.9L78 481c4.7 4 42 34.7 92.9 34.7 6 0 12.1-.3 18.2-.9 69.4-6.7 152.8-43.2 226.2-116.6 81.5-81.6 120.7-183.2 104.9-264.9L497.3 54c3.5-8.3 3.2-13.3-.3-14.8z"/></svg>
-            </a>
+    root.innerHTML = `
+        <div class="float-dock" id="float-dock" hidden>
+            <button type="button" class="float-book" data-open-popup>Записаться</button>
+            <button type="button" class="scroll-top" id="scroll-top" aria-label="Наверх">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                    <path fill="currentColor" d="M12 4.5l7 7-1.4 1.4L13 8.3V20h-2V8.3L6.4 12.9 5 11.5l7-7z"/>
+                </svg>
+            </button>
         </div>
         <div class="mobile-cta">
-            <button class="btn btn--accent" data-open-popup>Записаться</button>
+            <button type="button" class="btn btn--accent" data-open-popup>Записаться</button>
         </div>`;
 
     if (window.innerWidth <= 768) document.body.classList.add('has-mobile-cta');
+    initScrollTop();
+}
+
+function initScrollTop() {
+    const dock = document.getElementById('float-dock');
+    const btn = document.getElementById('scroll-top');
+    if (!dock || !btn) return;
+
+    const toggle = () => {
+        const show = window.scrollY > 400;
+        dock.hidden = !show;
+        dock.classList.toggle('is-visible', show);
+    };
+
+    btn.addEventListener('click', () => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    window.addEventListener('scroll', toggle, { passive: true });
+    toggle();
 }
 
 /* --------------------------------------------------------------------------
@@ -218,40 +430,115 @@ function bindPopup() {
     const servicePopup = document.getElementById('service-popup');
 
     document.addEventListener('click', e => {
-        const sBtn = e.target.closest('[data-open-service]');
-        if (sBtn) {
-            const service = SERVICES.find(s => s.id === sBtn.dataset.openService);
-            if (service) openServicePopup(service);
+        const expandNav = e.target.closest('[data-expand-service]');
+        if (expandNav) {
+            const id = expandNav.dataset.expandService;
+            const onIndex = document.body.dataset.page === 'index';
+            if (onIndex) {
+                e.preventDefault();
+                openServiceById(id);
+                const burger = document.getElementById('burger');
+                const navEl = document.getElementById('nav');
+                if (burger?.classList.contains('is-open')) {
+                    burger.classList.remove('is-open');
+                    navEl?.classList.remove('is-open');
+                    document.body.classList.remove('nav-open');
+                }
+            }
+            return;
+        }
+
+        const openServiceBtn = e.target.closest('[data-toggle-service], [data-open-service]');
+        if (openServiceBtn) {
+            e.preventDefault();
+            const id = openServiceBtn.getAttribute('data-toggle-service')
+                || openServiceBtn.getAttribute('data-open-service');
+            openServiceById(id);
             return;
         }
 
         const openBtn = e.target.closest('[data-open-popup]');
         if (openBtn) {
+            closeCalendarPopup();
             closePopup();
+            const promo = openBtn.dataset.promo;
             const service = openBtn.dataset.service;
-            const select = document.getElementById('lead-service');
-            if (service && select) select.value = service;
-            openPopup(popup);
+            if (promo) selectLeadPromo(promo);
+            if (service) selectLeadService(service);
+            openPopup(document.getElementById('lead-popup'));
             return;
         }
-        if (e.target.closest('[data-open-policy]')) openPopup(policy);
-        if (e.target.closest('[data-close-popup]')) closePopup();
+        if (e.target.closest('[data-open-policy]')) {
+            closeCalendarPopup();
+            openPopup(document.getElementById('policy-popup'));
+        }
+        if (e.target.closest('[data-close-calendar]')) {
+            closeCalendarPopup();
+            return;
+        }
+        if (e.target.closest('[data-close-popup]')) {
+            closeCalendarPopup();
+            closePopup();
+        }
         if (e.target.closest('[data-close-policy]')) closePopup();
         if (e.target.closest('[data-close-service]')) closePopup();
     });
 
     document.addEventListener('keydown', e => {
-        if (e.key === 'Escape') closePopup();
+        if (e.key !== 'Escape') return;
+        const calendar = document.getElementById('calendar-popup');
+        if (calendar?.classList.contains('is-open')) {
+            closeCalendarPopup();
+            return;
+        }
+        closePopup();
     });
 }
 
 function openServicePopup(service) {
     const content = document.getElementById('service-popup-content');
     const popup = document.getElementById('service-popup');
-    content.innerHTML = renderServiceCard(service).replace(/^<article/, '<article style="margin:0;box-shadow:none"');
-    const carousel = content.querySelector('.carousel');
-    if (carousel) initCarousel(carousel);
+    if (!content || !popup || !service) return;
+
+    content.innerHTML = `
+        <div class="service-popup">
+            <header class="service-popup__head">
+                <p class="service-popup__eyebrow">Услуга</p>
+                <h2 class="popup__title service-popup__title">${service.title}</h2>
+                <div class="grotesk-rule service-popup__rule" aria-hidden="true"></div>
+                <p class="popup__subtitle service-popup__desc">${service.shortDesc}</p>
+            </header>
+            <div class="service-popup__body">
+                ${renderServicePopupBody(service)}
+            </div>
+            <footer class="service-popup__actions">
+                <button type="button" class="btn btn--accent service-popup__cta" data-open-popup data-service="${service.title}">Записаться</button>
+            </footer>
+        </div>`;
+
+    initServicePopupScroll(content);
     openPopup(popup);
+}
+
+function initServicePopupScroll(root) {
+    const api = window.OverlayScrollbarsGlobal;
+    if (!api?.OverlayScrollbars || !root) return;
+
+    root.querySelectorAll('[data-os-scroll]').forEach(el => {
+        api.OverlayScrollbars(el, {
+            overflow: { x: 'hidden', y: 'scroll' },
+            scrollbars: {
+                theme: 'os-theme-mistudio',
+                autoHide: 'leave',
+                autoHideDelay: 600
+            }
+        });
+    });
+}
+
+function openServiceById(id) {
+    const service = SERVICES.find(s => s.id === id);
+    if (service) openServicePopup(service);
 }
 
 function openPopup(popup) {
@@ -268,6 +555,510 @@ function closePopup() {
 }
 
 /* --------------------------------------------------------------------------
+   Форма записи: контакты, услуги, календарь, маски
+   -------------------------------------------------------------------------- */
+
+function applyMask(digits, mask) {
+    let out = '';
+    let di = 0;
+    for (let i = 0; i < mask.length && di < digits.length; i++) {
+        if (mask[i] === '#') {
+            out += digits[di++];
+        } else {
+            out += mask[i];
+            if (digits[di] === mask[i]) di++;
+        }
+    }
+    return out;
+}
+
+function maskPlaceholder(mask) {
+    return mask.replace(/#/g, '_');
+}
+
+function onlyDigits(value) {
+    return String(value || '').replace(/\D/g, '');
+}
+
+function setPhoneCountry(code) {
+    const country = PHONE_COUNTRIES.find(c => c.code === code) || PHONE_COUNTRIES[0];
+    leadFormState.country = country;
+    const flag = document.getElementById('phone-flag');
+    const dial = document.getElementById('phone-dial');
+    const btn = document.getElementById('phone-country-btn');
+    const input = document.getElementById('lead-phone');
+    if (flag) {
+        flag.src = flagUrl(country.iso);
+        flag.alt = country.name;
+    }
+    if (dial) dial.textContent = '+' + country.dial;
+    if (btn) btn.setAttribute('aria-label', `${country.name} +${country.dial}`);
+    document.querySelectorAll('.phone-dd__item').forEach(el => {
+        el.classList.toggle('is-active', el.dataset.country === country.code);
+    });
+    if (input) {
+        input.placeholder = maskPlaceholder(country.mask);
+        const digits = onlyDigits(input.value).slice(0, country.len);
+        input.value = applyMask(digits, country.mask);
+    }
+    closePhoneCountryDd();
+}
+
+function openPhoneCountryDd() {
+    const dd = document.getElementById('phone-country-dd');
+    const btn = document.getElementById('phone-country-btn');
+    if (!dd || !btn) return;
+    dd.hidden = false;
+    btn.setAttribute('aria-expanded', 'true');
+}
+
+function closePhoneCountryDd() {
+    const dd = document.getElementById('phone-country-dd');
+    const btn = document.getElementById('phone-country-btn');
+    if (!dd || !btn) return;
+    dd.hidden = true;
+    btn.setAttribute('aria-expanded', 'false');
+}
+
+function setContactType(type) {
+    leadFormState.contactType = type;
+    document.querySelectorAll('.contact-tabs__btn').forEach(btn => {
+        const active = btn.dataset.contactType === type;
+        btn.classList.toggle('is-active', active);
+        btn.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    document.querySelectorAll('.contact-pane').forEach(pane => {
+        const active = pane.dataset.pane === type;
+        pane.classList.toggle('is-active', active);
+        pane.hidden = !active;
+    });
+}
+
+function formatEmailInput(raw) {
+    let value = String(raw || '').replace(/\s+/g, '').toLowerCase();
+    value = value.replace(/[^a-z0-9.@_+-]/g, '');
+    const at = value.indexOf('@');
+    if (at !== -1) {
+        const local = value.slice(0, at).replace(/@/g, '');
+        let domain = value.slice(at + 1).replace(/@/g, '');
+        domain = domain.replace(/^\.+/, '');
+        value = local + '@' + domain;
+    }
+    return value.slice(0, 80);
+}
+
+function formatTelegramInput(raw) {
+    let value = String(raw || '').replace(/^@+/, '');
+    value = value.replace(/[^a-zA-Z0-9_]/g, '').slice(0, 32);
+    return value;
+}
+
+function isValidEmail(value) {
+    return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(value);
+}
+
+function isValidTelegram(value) {
+    return /^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(value);
+}
+
+function isValidPhone() {
+    const digits = onlyDigits(document.getElementById('lead-phone')?.value);
+    return digits.length === leadFormState.country.len;
+}
+
+function getFullPhone() {
+    const local = onlyDigits(document.getElementById('lead-phone')?.value);
+    const formatted = document.getElementById('lead-phone')?.value || '';
+    return {
+        value: '+' + leadFormState.country.dial + local,
+        display: '+' + leadFormState.country.dial + ' ' + formatted
+    };
+}
+
+function getContactsPayload() {
+    const phone = getFullPhone();
+    const emailRaw = (document.getElementById('lead-email')?.value || '').trim();
+    const tgRaw = formatTelegramInput(document.getElementById('lead-telegram')?.value || '');
+
+    const parts = [phone.display];
+    const email = emailRaw || '';
+    const telegram = tgRaw ? '@' + tgRaw : '';
+
+    if (email) parts.push(email);
+    if (telegram) parts.push(telegram);
+
+    return {
+        phone: phone.value,
+        phone_display: phone.display,
+        email,
+        telegram,
+        contacts: parts.join(', ')
+    };
+}
+
+function renderServiceBadges() {
+    const wrap = document.getElementById('msel-badges');
+    const placeholder = document.getElementById('msel-placeholder');
+    if (!wrap || !placeholder) return;
+    wrap.innerHTML = leadFormState.services.map(title => `
+        <span class="msel__badge">
+            <span>${title}</span>
+            <button type="button" class="msel__badge-x" data-remove-service="${title}" aria-label="Убрать ${title}">&times;</button>
+        </span>`).join('');
+    placeholder.textContent = leadFormState.services.length
+        ? `Выбрано: ${leadFormState.services.length}`
+        : 'Выберите услуги';
+    document.querySelectorAll('#msel-dropdown input[type="checkbox"]').forEach(cb => {
+        cb.checked = leadFormState.services.includes(cb.value);
+    });
+}
+
+function promoLabel(title) {
+    const promo = PROMOS.find(p => p.title === title);
+    return promo ? `${promo.badge} · ${promo.title}` : title;
+}
+
+function syncPromosField() {
+    const field = document.getElementById('lead-promos-field');
+    if (!field) return;
+    field.hidden = leadFormState.promos.length === 0;
+}
+
+function renderPromoBadges() {
+    const wrap = document.getElementById('promo-badges');
+    if (!wrap) return;
+    wrap.innerHTML = leadFormState.promos.map(title => `
+        <span class="msel__badge msel__badge--promo">
+            <span>${promoLabel(title)}</span>
+            <button type="button" class="msel__badge-x" data-remove-promo="${title}" aria-label="Убрать акцию ${title}">&times;</button>
+        </span>`).join('');
+    syncPromosField();
+}
+
+function toggleLeadService(title, force) {
+    const set = new Set(leadFormState.services);
+    const on = force === undefined ? !set.has(title) : !!force;
+    if (on) set.add(title);
+    else set.delete(title);
+    leadFormState.services = Array.from(set);
+    renderServiceBadges();
+}
+
+function selectLeadService(title) {
+    if (!title) return;
+    toggleLeadService(title, true);
+}
+
+function toggleLeadPromo(title, force) {
+    if (!title) return;
+    const set = new Set(leadFormState.promos);
+    const on = force === undefined ? !set.has(title) : !!force;
+    if (on) set.add(title);
+    else set.delete(title);
+    leadFormState.promos = Array.from(set);
+    renderPromoBadges();
+}
+
+function selectLeadPromo(title) {
+    if (!title) return;
+    toggleLeadPromo(title, true);
+}
+
+function openMsel() {
+    const dd = document.getElementById('msel-dropdown');
+    const trigger = document.getElementById('msel-trigger');
+    if (!dd || !trigger) return;
+    dd.hidden = false;
+    trigger.setAttribute('aria-expanded', 'true');
+    trigger.classList.add('is-open');
+}
+
+function closeMsel() {
+    const dd = document.getElementById('msel-dropdown');
+    const trigger = document.getElementById('msel-trigger');
+    if (!dd || !trigger) return;
+    dd.hidden = true;
+    trigger.setAttribute('aria-expanded', 'false');
+    trigger.classList.remove('is-open');
+}
+
+function pad2(n) {
+    return String(n).padStart(2, '0');
+}
+
+function toDateKey(date) {
+    return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function formatDateRu(date) {
+    return `${pad2(date.getDate())}.${pad2(date.getMonth() + 1)}.${date.getFullYear()}`;
+}
+
+function parseDateKey(key) {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function sortDateKeys(keys) {
+    return [...keys].sort();
+}
+
+function renderDateBadges() {
+    const wrap = document.getElementById('dtp-badges');
+    const display = document.getElementById('dtp-display');
+    if (!wrap || !display) return;
+
+    const sorted = sortDateKeys(leadFormState.dates);
+    wrap.innerHTML = sorted.map(key => {
+        const label = formatDateRu(parseDateKey(key));
+        return `
+        <span class="dtp__badge">
+            <span>${label}</span>
+            <button type="button" class="dtp__badge-x" data-remove-date="${key}" aria-label="Убрать ${label}">&times;</button>
+        </span>`;
+    }).join('');
+
+    display.textContent = sorted.length
+        ? `Выбрано: ${sorted.length}`
+        : 'Выберите даты';
+    display.classList.toggle('is-filled', sorted.length > 0);
+}
+
+function toggleLeadDate(key, force) {
+    const set = new Set(leadFormState.dates);
+    const on = force === undefined ? !set.has(key) : !!force;
+    if (on) set.add(key);
+    else set.delete(key);
+    leadFormState.dates = sortDateKeys(Array.from(set));
+    renderDateBadges();
+    renderDatePicker();
+}
+
+function isSameDay(a, b) {
+    return a && b &&
+        a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate();
+}
+
+function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function renderDatePicker() {
+    const now = new Date();
+    if (leadFormState.viewYear == null) {
+        leadFormState.viewYear = now.getFullYear();
+        leadFormState.viewMonth = now.getMonth();
+    }
+
+    const monthEl = document.getElementById('dtp-month');
+    const daysEl = document.getElementById('dtp-days');
+    if (!monthEl || !daysEl) return;
+
+    monthEl.textContent = `${MONTHS_RU[leadFormState.viewMonth]} ${leadFormState.viewYear}`;
+
+    const first = new Date(leadFormState.viewYear, leadFormState.viewMonth, 1);
+    let startWeekday = first.getDay() - 1;
+    if (startWeekday < 0) startWeekday = 6;
+    const daysInMonth = new Date(leadFormState.viewYear, leadFormState.viewMonth + 1, 0).getDate();
+    const today = startOfDay(now);
+    const selected = new Set(leadFormState.dates);
+
+    let html = '';
+    for (let i = 0; i < startWeekday; i++) html += '<span class="dtp__day is-empty"></span>';
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(leadFormState.viewYear, leadFormState.viewMonth, day);
+        const key = toDateKey(date);
+        const disabled = startOfDay(date) < today;
+        const isSelected = selected.has(key);
+        const isToday = isSameDay(date, today);
+        html += `<button type="button" class="dtp__day${isSelected ? ' is-selected' : ''}${isToday ? ' is-today' : ''}" data-date="${key}" ${disabled ? 'disabled' : ''}>${day}</button>`;
+    }
+    daysEl.innerHTML = html;
+}
+
+function openCalendarPopup() {
+    const calendar = document.getElementById('calendar-popup');
+    const trigger = document.getElementById('dtp-trigger');
+    if (!calendar) return;
+    renderDatePicker();
+    calendar.classList.add('is-open');
+    trigger?.setAttribute('aria-expanded', 'true');
+    trigger?.classList.add('is-open');
+}
+
+function closeCalendarPopup() {
+    const calendar = document.getElementById('calendar-popup');
+    const trigger = document.getElementById('dtp-trigger');
+    if (!calendar) return;
+    calendar.classList.remove('is-open');
+    trigger?.setAttribute('aria-expanded', 'false');
+    trigger?.classList.remove('is-open');
+    renderDateBadges();
+}
+
+function initLeadForm() {
+    const phoneInput = document.getElementById('lead-phone');
+    const emailInput = document.getElementById('lead-email');
+    const tgInput = document.getElementById('lead-telegram');
+
+    setPhoneCountry('RU');
+    setContactType('phone');
+    renderServiceBadges();
+    renderPromoBadges();
+    renderDateBadges();
+    closeCalendarPopup();
+
+    document.querySelectorAll('.contact-tabs__btn').forEach(btn => {
+        btn.addEventListener('click', () => setContactType(btn.dataset.contactType));
+    });
+
+    document.getElementById('phone-country-btn')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const dd = document.getElementById('phone-country-dd');
+        if (dd?.hidden) openPhoneCountryDd();
+        else closePhoneCountryDd();
+    });
+
+    document.querySelectorAll('.phone-dd__item').forEach(item => {
+        item.addEventListener('click', () => setPhoneCountry(item.dataset.country));
+    });
+
+    phoneInput?.addEventListener('input', () => {
+        const digits = onlyDigits(phoneInput.value).slice(0, leadFormState.country.len);
+        phoneInput.value = applyMask(digits, leadFormState.country.mask);
+    });
+
+    emailInput?.addEventListener('input', () => {
+        emailInput.value = formatEmailInput(emailInput.value);
+    });
+
+    tgInput?.addEventListener('input', () => {
+        tgInput.value = formatTelegramInput(tgInput.value);
+    });
+
+    document.getElementById('msel-trigger')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const dd = document.getElementById('msel-dropdown');
+        if (dd?.hidden) openMsel();
+        else closeMsel();
+    });
+
+    document.getElementById('msel-dropdown')?.addEventListener('change', e => {
+        const cb = e.target.closest('input[type="checkbox"]');
+        if (!cb) return;
+        toggleLeadService(cb.value, cb.checked);
+    });
+
+    document.getElementById('msel-badges')?.addEventListener('click', e => {
+        const btn = e.target.closest('[data-remove-service]');
+        if (!btn) return;
+        toggleLeadService(btn.dataset.removeService, false);
+    });
+
+    document.getElementById('promo-badges')?.addEventListener('click', e => {
+        const btn = e.target.closest('[data-remove-promo]');
+        if (!btn) return;
+        toggleLeadPromo(btn.dataset.removePromo, false);
+    });
+
+    document.getElementById('dtp-trigger')?.addEventListener('click', e => {
+        e.stopPropagation();
+        closePhoneCountryDd();
+        closeMsel();
+        const calendar = document.getElementById('calendar-popup');
+        if (calendar?.classList.contains('is-open')) closeCalendarPopup();
+        else openCalendarPopup();
+    });
+
+    document.getElementById('dtp-prev')?.addEventListener('click', e => {
+        e.stopPropagation();
+        leadFormState.viewMonth -= 1;
+        if (leadFormState.viewMonth < 0) {
+            leadFormState.viewMonth = 11;
+            leadFormState.viewYear -= 1;
+        }
+        renderDatePicker();
+    });
+
+    document.getElementById('dtp-next')?.addEventListener('click', e => {
+        e.stopPropagation();
+        leadFormState.viewMonth += 1;
+        if (leadFormState.viewMonth > 11) {
+            leadFormState.viewMonth = 0;
+            leadFormState.viewYear += 1;
+        }
+        renderDatePicker();
+    });
+
+    document.getElementById('dtp-days')?.addEventListener('click', e => {
+        e.stopPropagation();
+        const btn = e.target.closest('[data-date]');
+        if (!btn || btn.disabled) return;
+        toggleLeadDate(btn.dataset.date);
+    });
+
+    document.getElementById('dtp-badges')?.addEventListener('click', e => {
+        const btn = e.target.closest('[data-remove-date]');
+        if (!btn) return;
+        toggleLeadDate(btn.dataset.removeDate, false);
+    });
+
+    document.addEventListener('click', e => {
+        if (!e.target.closest('.phone-country')) closePhoneCountryDd();
+        if (!e.target.closest('.msel')) closeMsel();
+    });
+}
+
+function resetLeadForm() {
+    const form = document.getElementById('lead-form');
+    form?.reset();
+    leadFormState.contactType = 'phone';
+    leadFormState.country = PHONE_COUNTRIES[0];
+    leadFormState.services = [];
+    leadFormState.promos = [];
+    leadFormState.dates = [];
+    setPhoneCountry('RU');
+    setContactType('phone');
+    renderServiceBadges();
+    renderPromoBadges();
+    renderDateBadges();
+    closeMsel();
+    closeCalendarPopup();
+    closePhoneCountryDd();
+}
+
+function downloadLeadTxt(payload) {
+    const lines = [
+        'Заявка на визит — Mi Studio',
+        '============================',
+        `Дата заявки: ${new Date().toLocaleString('ru-RU')}`,
+        '',
+        `Имя: ${payload.name}`,
+        `Контакты: ${payload.contacts}`,
+        `Услуги: ${payload.services.join(', ')}`,
+        `Акции: ${payload.promos?.length ? payload.promos.join(', ') : '—'}`,
+        `Желаемые даты: ${payload.visit_dates_display}`,
+        `Комментарий: ${payload.comment || '—'}`,
+        '',
+        '--- raw ---',
+        JSON.stringify(payload, null, 2)
+    ];
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    a.href = url;
+    a.download = `zayavka-mi-studio-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+}
+
+/* --------------------------------------------------------------------------
    Заявки: единая точка входа (задел на v2.0)
    -------------------------------------------------------------------------- */
 
@@ -277,6 +1068,8 @@ async function submitLead(formData) {
         source: 'website',
         version: '1.0'
     };
+
+    downloadLeadTxt(payload);
 
     if (CONFIG.leadWebhookUrl) {
         try {
@@ -293,7 +1086,6 @@ async function submitLead(formData) {
         }
     }
 
-    // Вебхук не настроен — имитируем успех (dev-режим).
     console.log('[submitLead] webhook не настроен, заявка:', payload);
     return { ok: true, dev: true };
 }
@@ -302,13 +1094,66 @@ function onLeadSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const status = document.getElementById('lead-status');
-    const data = Object.fromEntries(new FormData(form).entries());
+    const name = (form.name?.value || '').trim();
+    const comment = (form.comment?.value || '').trim();
+    const contacts = getContactsPayload();
+    const emailRaw = (document.getElementById('lead-email')?.value || '').trim();
+    const tgRaw = formatTelegramInput(document.getElementById('lead-telegram')?.value || '');
 
-    if (!data.name.trim() || !data.phone.trim()) {
+    if (!name) {
         status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Заполните имя и телефон.';
+        status.textContent = 'Укажите имя.';
         return;
     }
+
+    if (!isValidPhone()) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Введите корректный номер телефона.';
+        return;
+    }
+
+    if (emailRaw && !isValidEmail(emailRaw)) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Проверьте адрес почты или очистите поле.';
+        return;
+    }
+
+    if (tgRaw && !isValidTelegram(tgRaw)) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Проверьте Telegram (@username, от 5 символов) или очистите поле.';
+        return;
+    }
+
+    if (!leadFormState.services.length) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Выберите хотя бы одну услугу.';
+        return;
+    }
+
+    if (!leadFormState.dates.length) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Выберите хотя бы одну дату.';
+        return;
+    }
+
+    const datesDisplay = sortDateKeys(leadFormState.dates)
+        .map(key => formatDateRu(parseDateKey(key)))
+        .join(', ');
+
+    const data = {
+        name,
+        contacts: contacts.contacts,
+        phone: contacts.phone,
+        email: contacts.email,
+        telegram: contacts.telegram,
+        services: [...leadFormState.services],
+        service: leadFormState.services.join(', '),
+        promos: [...leadFormState.promos],
+        promo: leadFormState.promos.join(', '),
+        visit_dates: [...leadFormState.dates],
+        visit_dates_display: datesDisplay,
+        comment
+    };
 
     status.className = 'form__status is-show form__status--ok';
     status.textContent = 'Отправляем...';
@@ -317,9 +1162,9 @@ function onLeadSubmit(e) {
         if (res.ok) {
             status.className = 'form__status is-show form__status--ok';
             status.textContent = res.dev
-                ? 'Форма работает (вебхук ещё не подключён). Заявка сохранена в консоли.'
+                ? 'Заявка сформирована — txt-файл скачан (debug).'
                 : 'Спасибо! Заявка отправлена — мы свяжемся с вами.';
-            form.reset();
+            resetLeadForm();
         } else {
             status.className = 'form__status is-show form__status--err';
             status.textContent = 'Не удалось отправить. Попробуйте ещё раз или позвоните нам.';
@@ -440,29 +1285,383 @@ function renderServicesPage() {
 function renderPromos() {
     const wrap = document.getElementById('promos-list');
     if (!wrap) return;
-    wrap.innerHTML = PROMOS.map(p => `
-        <button class="promo-card" data-open-popup>
-            <span class="promo-card__badge">${p.badge}</span>
-            <div class="promo-card__title">${p.title}</div>
-            <div class="promo-card__desc">${p.desc}</div>
-            <span class="promo-card__link">Записаться &rarr;</span>
-        </button>`).join('');
+
+    const pieces = PROMOS.flatMap(p => {
+        const item = `
+            <article class="promo-card">
+                <span class="promo-card__shine" aria-hidden="true"></span>
+                <span class="promo-card__top">
+                    <span class="promo-card__badge">${p.badge}</span>
+                    <span class="promo-card__tag">${p.tag}</span>
+                </span>
+                <span class="promo-card__title">${p.title}</span>
+                <span class="promo-card__desc">${p.desc}</span>
+                <span class="promo-card__footer">
+                    <span class="promo-card__note">${p.note}</span>
+                    <button type="button" class="promo-card__cta" data-open-popup data-promo="${p.title}">ДОБАВИТЬ</button>
+                </span>
+            </article>`;
+        return [item];
+    }).join('');
+
+    wrap.innerHTML = `
+        <div class="promo-marquee__track">
+            ${pieces}
+            ${pieces}
+        </div>`;
+
+    initPromoMarquee(wrap);
+}
+
+function initPromoMarquee(viewport) {
+    const track = viewport.querySelector('.promo-marquee__track');
+    if (!track) return;
+
+    let offset = 0;
+    let paused = false;
+    let dragging = false;
+    let pointerActive = false;
+    let startX = 0;
+    let startOffset = 0;
+    let moved = false;
+    let raf = 0;
+    const speed = 0.45;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function halfWidth() {
+        return track.scrollWidth / 2;
+    }
+
+    function apply() {
+        const half = halfWidth() || 1;
+        offset = ((offset % half) + half) % half;
+        track.style.transform = `translateX(${-offset}px)`;
+    }
+
+    function tick() {
+        if (!paused && !dragging && !reduceMotion) {
+            offset += speed;
+            apply();
+        }
+        raf = requestAnimationFrame(tick);
+    }
+
+    viewport.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        pointerActive = true;
+        dragging = false;
+        moved = false;
+        paused = true;
+        startX = e.clientX;
+        startOffset = offset;
+    });
+
+    viewport.addEventListener('pointermove', e => {
+        if (!pointerActive) return;
+        const dx = e.clientX - startX;
+        if (!dragging && Math.abs(dx) > 8) {
+            dragging = true;
+            moved = true;
+            viewport.classList.add('is-grabbing');
+            try { viewport.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+        }
+        if (!dragging) return;
+        e.preventDefault();
+        offset = startOffset - dx;
+        apply();
+    });
+
+    function endDrag(e) {
+        if (!pointerActive) return;
+        pointerActive = false;
+        const wasDrag = moved;
+        dragging = false;
+        viewport.classList.remove('is-grabbing');
+        try { viewport.releasePointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+
+        if (wasDrag) {
+            const blocker = ev => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                track.removeEventListener('click', blocker, true);
+            };
+            track.addEventListener('click', blocker, true);
+        }
+
+        setTimeout(() => { paused = false; }, 900);
+    }
+
+    viewport.addEventListener('pointerup', endDrag);
+    viewport.addEventListener('pointercancel', endDrag);
+    viewport.addEventListener('pointerleave', () => {
+        if (!pointerActive) paused = false;
+    });
+    viewport.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
+    viewport.addEventListener('mouseleave', () => { if (!pointerActive) paused = false; });
+
+    if (!reduceMotion) raf = requestAnimationFrame(tick);
+    else apply();
+
+    window.addEventListener('beforeunload', () => cancelAnimationFrame(raf), { once: true });
 }
 
 function renderServicePreviews() {
     const wrap = document.getElementById('services-preview');
     if (!wrap) return;
+
     wrap.innerHTML = SERVICES.map(s => `
-        <button class="service-card" data-open-service="${s.id}">
-            <div class="service-card__media">
-                <img src="${s.images[0]}" alt="${s.title}" loading="lazy">
-            </div>
-            <div class="service-card__body">
-                <div class="service-card__title">${s.title}</div>
-                <div class="service-card__desc">${s.shortDesc}</div>
-                <span class="service-card__more">Подробнее &rarr;</span>
+        <button type="button" class="service-card card-3d-host" data-toggle-service="${s.id}">
+            <div class="card-3d__face">
+                <div class="card-3d__shine" aria-hidden="true"></div>
+                <div class="service-card__media">
+                    <img src="${s.images[0]}" alt="${s.title}" loading="lazy" draggable="false">
+                </div>
+                <div class="service-card__body">
+                    <div class="service-card__title">${s.title}</div>
+                    <div class="service-card__desc">${s.shortDesc}</div>
+                    <span class="service-card__more">Подробнее &rarr;</span>
+                </div>
             </div>
         </button>`).join('');
+
+    wrap.querySelectorAll('[data-toggle-service]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            openServiceById(btn.getAttribute('data-toggle-service'));
+        });
+    });
+
+    initArrowRail('services-rail', 'services-preview', '.service-card');
+    initCardTilt(wrap, '.card-3d-host');
+}
+
+function splitMasterName(fullName) {
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 3) {
+        return { surname: parts[0], given: parts.slice(1).join(' ') };
+    }
+    if (parts.length === 2) {
+        return { surname: parts[0], given: parts[1] };
+    }
+    return { surname: '', given: parts[0] || '' };
+}
+
+function masterInitials(fullName) {
+    const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return (parts[0] || '?').slice(0, 2).toUpperCase();
+}
+
+function renderServicePopupBody(service) {
+    const masters = service.masters.map(m => {
+        const { surname, given } = splitMasterName(m.name);
+        const photo = m.photo
+            ? `<img class="master-card__img" src="${m.photo}" alt="${m.name}" loading="lazy">`
+            : `<span class="master-card__initials">${masterInitials(m.name)}</span>`;
+
+        return `
+            <article class="master-card">
+                <div class="master-card__photo">${photo}</div>
+                <div class="master-card__body">
+                    ${surname ? `<p class="master-card__surname">${surname}</p>` : ''}
+                    <h4 class="master-card__name">${given || m.name}</h4>
+                    <p class="master-card__desc">${m.desc}</p>
+                </div>
+            </article>`;
+    }).join('');
+
+    const price = service.price.map((block, bi) => `
+        <details class="price-sheet" ${bi === 0 ? 'open' : ''}>
+            <summary class="price-sheet__head">
+                <span>${block.section}</span>
+                <span class="price-sheet__count">${block.items.length}</span>
+            </summary>
+            <div class="price-sheet__body">
+                ${block.items.map(it => `
+                    <div class="price-sheet__row">
+                        <div class="price-sheet__info">
+                            <span class="price-sheet__name">${it.name}</span>
+                            ${it.meta ? `<span class="price-sheet__meta">${it.meta}</span>` : ''}
+                        </div>
+                        <span class="price-sheet__price">${it.price}</span>
+                    </div>`).join('')}
+            </div>
+        </details>`).join('');
+
+    return `
+        <div class="service-popup__grid">
+            <div class="service-popup__col service-popup__col--masters">
+                <h4 class="service-popup__label">Мастера</h4>
+                <div class="master-cards" data-os-scroll>${masters}</div>
+            </div>
+            <div class="service-popup__col service-popup__col--price">
+                <h4 class="service-popup__label">Прайс-лист</h4>
+                <div class="price-sheets" data-os-scroll>${price}</div>
+            </div>
+        </div>`;
+}
+
+function expandHomeService(id) {
+    openServiceById(id);
+}
+
+function initCardTilt(root, selector) {
+    if (!root) return;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    function resetTilt(face) {
+        face.style.setProperty('--tilt-x', '0deg');
+        face.style.setProperty('--tilt-y', '0deg');
+        face.style.setProperty('--tilt-lift', '0px');
+        face.classList.remove('is-tilting');
+    }
+
+    root.querySelectorAll(selector).forEach(host => {
+        const face = host.querySelector('.card-3d__face');
+        if (!face) return;
+
+        host.addEventListener('pointerenter', () => {
+            host._tiltRect = host.getBoundingClientRect();
+        });
+
+        host.addEventListener('pointermove', e => {
+            const rail = host.closest('[id$="-rail"]');
+            if (rail?.dataset.dragged === '1') return;
+
+            const rect = host._tiltRect || host.getBoundingClientRect();
+            if (!host._tiltRect) host._tiltRect = rect;
+
+            const x = Math.max(-0.5, Math.min(0.5, (e.clientX - rect.left) / rect.width - 0.5));
+            const y = Math.max(-0.5, Math.min(0.5, (e.clientY - rect.top) / rect.height - 0.5));
+
+            face.style.setProperty('--tilt-x', `${(-y * 6).toFixed(2)}deg`);
+            face.style.setProperty('--tilt-y', `${(x * 8).toFixed(2)}deg`);
+            face.style.setProperty('--tilt-lift', '-4px');
+            face.style.setProperty('--shine-x', `${(x + 0.5) * 100}%`);
+            face.style.setProperty('--shine-y', `${(y + 0.5) * 100}%`);
+            face.classList.add('is-tilting');
+        });
+
+        host.addEventListener('pointerleave', () => {
+            host._tiltRect = null;
+            resetTilt(face);
+        });
+    });
+}
+
+function initArrowRail(railId, trackId, cardSelector) {
+    const rail = document.getElementById(railId);
+    const viewport = rail?.querySelector('[class*="__viewport"]');
+    const track = document.getElementById(trackId);
+    const prevBtn = rail?.querySelector('[data-rail-prev]');
+    const nextBtn = rail?.querySelector('[data-rail-next]');
+    if (!rail || !viewport || !track || !prevBtn || !nextBtn) return;
+
+    let offset = 0;
+    let dragging = false;
+    let pointerActive = false;
+    let startX = 0;
+    let startOffset = 0;
+    let pointerId = null;
+    const DRAG_THRESHOLD = 10;
+
+    function cardStep() {
+        const card = track.querySelector(cardSelector);
+        if (!card) return 300;
+        const gap = parseFloat(getComputedStyle(track).gap) || 20;
+        return card.getBoundingClientRect().width + gap;
+    }
+
+    function maxOffset() {
+        return Math.max(0, track.scrollWidth - viewport.clientWidth);
+    }
+
+    function updateButtons() {
+        const max = maxOffset();
+        prevBtn.disabled = offset <= 2;
+        nextBtn.disabled = offset >= max - 2;
+        prevBtn.classList.toggle('is-disabled', prevBtn.disabled);
+        nextBtn.classList.toggle('is-disabled', nextBtn.disabled);
+    }
+
+    function apply(instant) {
+        offset = Math.max(0, Math.min(offset, maxOffset()));
+        track.classList.toggle('is-instant', !!instant);
+        track.style.transform = `translateX(${-offset}px)`;
+        updateButtons();
+    }
+
+    function move(dir) {
+        offset += dir * cardStep();
+        apply(false);
+    }
+
+    prevBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        move(-1);
+    });
+    nextBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        move(1);
+    });
+
+    viewport.addEventListener('pointerdown', e => {
+        if (e.button !== 0) return;
+        if (e.target.closest('.rail-arrow')) return;
+        pointerActive = true;
+        dragging = false;
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        startOffset = offset;
+        rail.dataset.dragged = '0';
+    });
+
+    viewport.addEventListener('pointermove', e => {
+        if (!pointerActive || e.pointerId !== pointerId) return;
+        const dx = e.clientX - startX;
+
+        if (!dragging) {
+            if (Math.abs(dx) < DRAG_THRESHOLD) return;
+            dragging = true;
+            rail.dataset.dragged = '1';
+            viewport.classList.add('is-dragging');
+            try { viewport.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+        }
+
+        offset = startOffset - dx;
+        apply(true);
+    });
+
+    function endDrag(e) {
+        if (!pointerActive || (e && e.pointerId !== pointerId)) return;
+        pointerActive = false;
+
+        if (dragging) {
+            dragging = false;
+            viewport.classList.remove('is-dragging');
+            try { viewport.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
+            const step = cardStep();
+            offset = Math.round(offset / step) * step;
+            apply(false);
+
+            const blocker = ev => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                track.removeEventListener('click', blocker, true);
+            };
+            track.addEventListener('click', blocker, true);
+            setTimeout(() => { rail.dataset.dragged = '0'; }, 0);
+        }
+
+        pointerId = null;
+    }
+
+    viewport.addEventListener('pointerup', endDrag);
+    viewport.addEventListener('pointercancel', endDrag);
+    window.addEventListener('resize', () => apply(true));
+    apply(true);
 }
 
 /* --------------------------------------------------------------------------
@@ -474,10 +1673,18 @@ function renderGallery() {
     if (!wrap) return;
 
     wrap.innerHTML = PORTFOLIO_IMAGES.map((src, i) => `
-        <div class="gallery-item" data-index="${i}">
-            <img src="${src}" alt="Работа ${i + 1}" loading="lazy">
+        <div class="gallery-item card-3d-host" data-index="${i}">
+            <div class="card-3d__face">
+                <div class="card-3d__shine" aria-hidden="true"></div>
+                <img src="${src}" alt="Работа ${i + 1}" loading="lazy" draggable="false">
+            </div>
         </div>`).join('');
 
+    if (document.getElementById('portfolio-rail')) {
+        initArrowRail('portfolio-rail', 'gallery', '.gallery-item');
+    }
+
+    initCardTilt(wrap, '.card-3d-host');
     initLightbox(wrap);
 }
 
@@ -526,14 +1733,23 @@ function renderContacts() {
     const phone2 = document.getElementById('c-phone2');
     const schedule = document.getElementById('c-schedule');
     const map = document.getElementById('c-map');
+    const homeSocials = document.getElementById('home-socials');
 
-    if (address) address.innerHTML = CONFIG.address;
-    if (schedule) schedule.innerHTML = CONFIG.schedule;
-    if (phone1) phone1.innerHTML = CONFIG.phonesDisplay[0];
-    if (phone2) phone2.innerHTML = CONFIG.phonesDisplay[1];
-    if (phone1 && phone1.parentElement) phone1.parentElement.href = 'tel:+' + CONFIG.phones[0];
-    if (phone2 && phone2.parentElement) phone2.parentElement.href = 'tel:+' + CONFIG.phones[1];
+    if (address) address.textContent = CONFIG.address;
+    if (schedule) schedule.textContent = CONFIG.schedule;
+    if (phone1) {
+        phone1.textContent = CONFIG.phonesDisplay[0];
+        phone1.href = 'tel:+' + CONFIG.phones[0].replace(/[^0-9]/g, '');
+    }
+    if (phone2) {
+        phone2.textContent = CONFIG.phonesDisplay[1];
+        phone2.href = 'tel:+' + CONFIG.phones[1].replace(/[^0-9]/g, '');
+    }
     if (map) map.src = CONFIG.mapEmbedUrl;
+
+    if (homeSocials) {
+        homeSocials.innerHTML = socialLinksHtml(18);
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -541,15 +1757,24 @@ function renderContacts() {
    -------------------------------------------------------------------------- */
 
 function scrollToHash() {
-    if (location.hash) {
-        const el = document.querySelector(location.hash);
-        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    const hash = location.hash.slice(1);
+    if (!hash) return;
+    const el = document.getElementById(hash);
+    if (!el) return;
+    if (document.body.dataset.page === 'index') {
+        const allowed = ['services', 'about', 'portfolio', 'contacts'];
+        if (!allowed.includes(hash)) return;
     }
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
 }
 
 /* --------------------------------------------------------------------------
    Инициализация
    -------------------------------------------------------------------------- */
+
+if ('scrollRestoration' in history) {
+    history.scrollRestoration = 'manual';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     renderHeader(document.body.dataset.page || '');
@@ -562,4 +1787,88 @@ document.addEventListener('DOMContentLoaded', () => {
     renderGallery();
     renderContacts();
     bindPopup();
+    initScrollbars();
+    initHeroStage();
+
+    const hash = location.hash.slice(1);
+    const sectionIds = ['services', 'about', 'portfolio', 'contacts'];
+
+    if (hash && sectionIds.includes(hash)) {
+        scrollToHash();
+    } else if (document.body.dataset.page === 'index' && SERVICES.some(s => s.id === hash)) {
+        // попап услуги по #id — без прыжка к середине страницы
+        window.scrollTo(0, 0);
+        openServiceById(hash);
+    } else {
+        window.scrollTo(0, 0);
+    }
 });
+
+function initHeroStage() {
+    const stage = document.querySelector('[data-hero-stage]');
+    const orbit = document.querySelector('[data-hero-orbit]');
+    if (!stage || !orbit) return;
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) return;
+
+    let raf = 0;
+    let targetX = 0;
+    let targetY = 0;
+    let currentX = 0;
+    let currentY = 0;
+
+    function tick() {
+        currentX += (targetX - currentX) * 0.08;
+        currentY += (targetY - currentY) * 0.08;
+        orbit.style.transform = `rotateY(${currentX * 10}deg) rotateX(${currentY * -7}deg)`;
+        raf = requestAnimationFrame(tick);
+    }
+
+    stage.addEventListener('pointermove', e => {
+        const rect = stage.getBoundingClientRect();
+        const x = (e.clientX - rect.left) / rect.width - 0.5;
+        const y = (e.clientY - rect.top) / rect.height - 0.5;
+        targetX = Math.max(-0.5, Math.min(0.5, x));
+        targetY = Math.max(-0.5, Math.min(0.5, y));
+    });
+
+    stage.addEventListener('pointerleave', () => {
+        targetX = 0;
+        targetY = 0;
+    });
+
+    raf = requestAnimationFrame(tick);
+    window.addEventListener('beforeunload', () => cancelAnimationFrame(raf), { once: true });
+}
+
+function initScrollbars() {
+    const api = window.OverlayScrollbarsGlobal;
+    if (!api?.OverlayScrollbars) return;
+
+    const options = {
+        overflow: { x: 'hidden', y: 'scroll' },
+        scrollbars: {
+            theme: 'os-theme-mistudio',
+            autoHide: 'leave',
+            autoHideDelay: 600
+        }
+    };
+
+    api.OverlayScrollbars(document.body, options);
+    document.querySelectorAll('.popup__container').forEach(el => {
+        api.OverlayScrollbars(el, options);
+    });
+
+    const phoneScroll = document.getElementById('phone-country-scroll');
+    if (phoneScroll) {
+        api.OverlayScrollbars(phoneScroll, {
+            ...options,
+            overflow: { x: 'hidden', y: 'scroll' },
+            scrollbars: {
+                theme: 'os-theme-mistudio',
+                autoHide: 'never'
+            }
+        });
+    }
+}
