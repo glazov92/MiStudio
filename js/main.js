@@ -621,6 +621,22 @@ function onlyDigits(value) {
     return String(value || '').replace(/\D/g, '');
 }
 
+function normalizePhoneDigits(raw, country) {
+    const c = country || leadFormState.country;
+    let digits = onlyDigits(raw);
+    if (c.dial && digits.length > c.len && digits.startsWith(c.dial)) {
+        digits = digits.slice(c.dial.length);
+    }
+    return digits;
+}
+
+function reformatPhoneInput(input) {
+    if (!input) return;
+    const c = leadFormState.country;
+    const digits = normalizePhoneDigits(input.value, c).slice(0, c.len);
+    input.value = applyMask(digits, c.mask);
+}
+
 function setPhoneCountry(code) {
     const country = PHONE_COUNTRIES.find(c => c.code === code) || PHONE_COUNTRIES[0];
     leadFormState.country = country;
@@ -639,8 +655,7 @@ function setPhoneCountry(code) {
     });
     if (input) {
         input.placeholder = maskPlaceholder(country.mask);
-        const digits = onlyDigits(input.value).slice(0, country.len);
-        input.value = applyMask(digits, country.mask);
+        reformatPhoneInput(input);
     }
     closePhoneCountryDd();
 }
@@ -975,10 +990,9 @@ function initLeadForm() {
         item.addEventListener('click', () => setPhoneCountry(item.dataset.country));
     });
 
-    phoneInput?.addEventListener('input', () => {
-        const digits = onlyDigits(phoneInput.value).slice(0, leadFormState.country.len);
-        phoneInput.value = applyMask(digits, leadFormState.country.mask);
-    });
+    phoneInput?.addEventListener('input', () => reformatPhoneInput(phoneInput));
+    phoneInput?.addEventListener('change', () => reformatPhoneInput(phoneInput));
+    phoneInput?.addEventListener('blur', () => reformatPhoneInput(phoneInput));
 
     emailInput?.addEventListener('input', () => {
         emailInput.value = formatEmailInput(emailInput.value);
