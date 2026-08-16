@@ -6,29 +6,126 @@
 
 (function () {
 
+function masterRowHtml(m, idx) {
+    m = m || {};
+    return `
+        <div class="ed-master-row" data-ed-master>
+            <input class="ed-input" data-f="name" placeholder="Имя мастера" value="${editorEscapeHtml(m.name || '')}" ${idx === 0 ? 'autofocus' : ''}>
+            <input class="ed-input" data-f="photo" placeholder="Фото (URL)" value="${editorEscapeHtml(m.photo || '')}">
+            <input class="ed-input" data-f="desc" placeholder="Кто мастер, опыт, образование" value="${editorEscapeHtml(m.desc || '')}">
+            <button type="button" class="ed-mini ed-mini--danger" data-ed-master-del title="Удалить мастера">✕</button>
+        </div>`;
+}
+
+function priceItemRowHtml(it) {
+    it = it || {};
+    return `
+        <div class="ed-price-item" data-ed-price-item>
+            <input class="ed-input" data-f="name" placeholder="Название процедуры" value="${editorEscapeHtml(it.name || '')}">
+            <input class="ed-input" data-f="meta" placeholder="Примечание (длительность)" value="${editorEscapeHtml(it.meta || '')}">
+            <input class="ed-input ed-price-item__price" data-f="price" placeholder="Цена" value="${editorEscapeHtml(it.price || '')}">
+            <button type="button" class="ed-mini ed-mini--danger" data-ed-price-item-del title="Удалить позицию">✕</button>
+        </div>`;
+}
+
+function priceSectionHtml(block) {
+    block = block || {};
+    const items = (Array.isArray(block.items) && block.items.length ? block.items : [{}]).map(priceItemRowHtml).join('');
+    return `
+        <div class="ed-price-sec" data-ed-price-sec>
+            <div class="ed-price-sec__head">
+                <input class="ed-input" data-f="section" placeholder="Название раздела (категория прайса)" value="${editorEscapeHtml(block.section || '')}">
+                <button type="button" class="ed-mini ed-mini--danger" data-ed-price-sec-del title="Удалить раздел">✕</button>
+            </div>
+            <div class="ed-price-items" data-ed-price-items>${items}</div>
+            <button type="button" class="ed-btn ed-btn--sm" data-ed-price-add-item>+ Позиция</button>
+        </div>`;
+}
+
+function renderMastersBox(box, masters) {
+    box.innerHTML = (Array.isArray(masters) && masters.length ? masters : [{}]).map(masterRowHtml).join('');
+}
+
+function renderPriceBox(box, price) {
+    const sections = (Array.isArray(price) && price.length ? price : [{ section: '', items: [{}] }]);
+    box.innerHTML = sections.map(priceSectionHtml).join('');
+}
+
+function parseMasters(root) {
+    const out = [];
+    root.querySelectorAll('[data-ed-master]').forEach(row => {
+        const m = {};
+        row.querySelectorAll('[data-f]').forEach(inp => { m[inp.dataset.f] = inp.value.trim(); });
+        if (m.name || m.photo || m.desc) out.push(m);
+    });
+    return out;
+}
+
+function parsePrice(root) {
+    const out = [];
+    root.querySelectorAll('[data-ed-price-sec]').forEach(sec => {
+        const sectionInput = sec.querySelector('[data-f="section"]');
+        const items = [];
+        sec.querySelectorAll('[data-ed-price-item]').forEach(row => {
+            const it = {};
+            row.querySelectorAll('[data-f]').forEach(inp => { it[inp.dataset.f] = inp.value.trim(); });
+            if (it.name || it.meta || it.price) items.push(it);
+        });
+        if ((sectionInput && sectionInput.value.trim()) || items.length) {
+            out.push({ section: sectionInput ? sectionInput.value.trim() : '', items });
+        }
+    });
+    return out;
+}
+
+function wireServiceForm(root, mastersBox, priceBox) {
+    root.addEventListener('click', e => {
+        const delM = e.target.closest('[data-ed-master-del]');
+        if (delM) { delM.closest('[data-ed-master]').remove(); return; }
+        const delS = e.target.closest('[data-ed-price-sec-del]');
+        if (delS) { delS.closest('[data-ed-price-sec]').remove(); return; }
+        const delI = e.target.closest('[data-ed-price-item-del]');
+        if (delI) { delI.closest('[data-ed-price-item]').remove(); return; }
+        const addI = e.target.closest('[data-ed-price-add-item]');
+        if (addI) {
+            const itemsBox = addI.closest('[data-ed-price-sec]').querySelector('[data-ed-price-items]');
+            itemsBox.insertAdjacentHTML('beforeend', priceItemRowHtml({}));
+            return;
+        }
+        const addM = e.target.closest('[data-ed-add-master]');
+        if (addM && mastersBox) {
+            mastersBox.insertAdjacentHTML('beforeend', masterRowHtml({}, mastersBox.children.length));
+            return;
+        }
+        const addS = e.target.closest('[data-ed-add-section]');
+        if (addS && priceBox) {
+            priceBox.insertAdjacentHTML('beforeend', priceSectionHtml({}));
+        }
+    });
+}
+
 function serviceFormHtml(s) {
     s = s || {};
     return `
         ${editorField('Название услуги', s.title || '', { name: 'title' })}
         ${editorField('Описание', s.shortDesc || '', { name: 'shortDesc', type: 'textarea', rows: 3 })}
-        ${editorField('Цена (строка, например «от 1 500 ₽»)', s.priceText || '', { name: 'priceText' })}
         ${editorField('Категория (по желанию)', s.category || '', { name: 'category' })}
-        ${editorField('Картинка (URL)', (s.images && s.images[0]) || s.image || '', { name: 'image', placeholder: 'img/... или https://...' })}
+        ${editorField('Главная картинка (URL)', (s.images && s.images[0]) || s.image || '', { name: 'image', placeholder: 'img/... или https://...' })}
+        ${editorField('Цена (строка для карточки, опционально)', s.priceText || '', { name: 'priceText', placeholder: 'от 1 500 ₽' })}
+        <div class="ed-field">
+            <div class="ed-field__label">Мастера</div>
+            <div class="ed-masters" data-ed-masters></div>
+            <button type="button" class="ed-btn ed-btn--sm" data-ed-add-master>+ Добавить мастера</button>
+        </div>
+        <div class="ed-field">
+            <div class="ed-field__label">Прайс-лист (разделы и позиции)</div>
+            <div class="ed-price" data-ed-price></div>
+            <button type="button" class="ed-btn ed-btn--sm" data-ed-add-section>+ Добавить раздел</button>
+        </div>
         ${editorField('Телефон', s.phone || '', { name: 'phone', placeholder: '+7...' })}
         ${editorField('Телефон (как показывать)', s.phoneDisplay || '', { name: 'phoneDisplay', placeholder: '+7 (___) ___-__-__' })}
         ${editorField('VK', s.vk || '', { name: 'vk' })}
-        ${editorField('Telegram', s.tg || '', { name: 'tg' })}
-        ${editorField('Мастера (каждый с новой строки: Имя | описание)', Array.isArray(s.masters) ? s.masters.map(m => m.name + (m.desc ? ' | ' + m.desc : '')).join('\n') : '', { name: 'masters', type: 'textarea', rows: 3 })}`;
-}
-
-function parseMasters(raw) {
-    return String(raw || '').split('\n').map(line => line.trim()).filter(Boolean).map(line => {
-        const sep = line.indexOf('|');
-        if (sep !== -1) {
-            return { name: line.slice(0, sep).trim(), desc: line.slice(sep + 1).trim(), photo: '' };
-        }
-        return { name: line, desc: '', photo: '' };
-    });
+        ${editorField('Telegram', s.tg || '', { name: 'tg' })}`;
 }
 
 function openServiceForm(existing) {
@@ -42,6 +139,11 @@ function openServiceForm(existing) {
                 <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Отмена</button>
             </div>
         </form>`, rootEl => {
+        const mastersBox = rootEl.querySelector('[data-ed-masters]');
+        const priceBox = rootEl.querySelector('[data-ed-price]');
+        if (mastersBox) renderMastersBox(mastersBox, service.masters);
+        if (priceBox) renderPriceBox(priceBox, service.price);
+        wireServiceForm(rootEl, mastersBox, priceBox);
         const form = rootEl.querySelector('[data-ed-form]');
         form.addEventListener('submit', e => {
             e.preventDefault();
@@ -55,8 +157,9 @@ function openServiceForm(existing) {
             const existing = isNew ? null : (list.find(x => x.id === service.id) || service);
             const prevMasters = (existing && Array.isArray(existing.masters)) ? existing.masters : [];
             const prevImages = (existing && Array.isArray(existing.images)) ? existing.images : [];
+            const prevPrice = (existing && Array.isArray(existing.price)) ? existing.price : [];
 
-            let masters = parseMasters(data.masters);
+            let masters = parseMasters(rootEl);
             if (!masters.length && prevMasters.length) {
                 masters = prevMasters;
             } else {
@@ -65,6 +168,9 @@ function openServiceForm(existing) {
                     return prev ? Object.assign({}, m, { photo: prev.photo }) : m;
                 });
             }
+
+            let price = parsePrice(rootEl);
+            if (!price.length && prevPrice.length) price = prevPrice;
 
             const images = images0.length
                 ? images0.concat(prevImages.slice(1))
@@ -84,10 +190,10 @@ function openServiceForm(existing) {
             };
 
             if (isNew) {
-                list.push(Object.assign({ id: editorGenerateId('service') }, base, { price: [] }));
+                list.push(Object.assign({ id: editorGenerateId('service') }, base, { price }));
             } else {
                 const idx = list.findIndex(x => x.id === service.id);
-                const merged = Object.assign({}, list[idx] || service, base);
+                const merged = Object.assign({}, list[idx] || service, base, { price });
                 if (idx === -1) list.push(merged);
                 else list[idx] = merged;
             }
@@ -195,6 +301,6 @@ function openServicesManager() {
 }
 
 window.EDITOR_SECTIONS = window.EDITOR_SECTIONS || {};
-window.EDITOR_SECTIONS.services = { open: openServicesManager };
+window.EDITOR_SECTIONS.services = { open: openServicesManager, openForm: openServiceForm };
 
 })();

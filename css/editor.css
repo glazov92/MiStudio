@@ -530,3 +530,22 @@ body.editor-active [data-editable="image"]:focus-visible {
         grid-template-columns: 1fr;
     }
 }
+
+/* Подсказки: что кликабельно в режиме редактирования */
+body.editor-active [data-editable],
+body.editor-active [data-ed-path],
+body.editor-active [data-editor-img] {
+    outline: 2px dashed rgba(184,151,90,.45);
+    outline-offset: 2px;
+    cursor: pointer;
+    transition: outline-color .15s ease;
+}
+body.editor-active [data-editable]:hover,
+body.editor-active [data-ed-path]:hover,
+body.editor-active [data-editor-img]:hover {
+    outline-color: #B8975A;
+    outline-style: solid;
+}
+body.editor-active [data-editor-img] {
+    position: relative;
+}

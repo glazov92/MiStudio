@@ -18,6 +18,7 @@ function editorModeActive() {
 function editorLoadStore() {
     EDITOR_STORE.texts = editorLoadJSON('texts', {}) || {};
     EDITOR_STORE.images = editorLoadJSON('images', {}) || {};
+    EDITOR_STORE.paths = editorLoadJSON('paths', {}) || {};
     EDITOR_STORE.promos = editorLoadJSON('promos', null);
     EDITOR_STORE.services = editorLoadJSON('services', null);
     EDITOR_STORE.portfolio = editorLoadJSON('portfolio', null);
@@ -41,6 +42,63 @@ function editorApplySaved() {
         if (!id) return;
         if (!el.dataset.editorOrig) el.dataset.editorOrig = el.getAttribute('src') || '';
         if (EDITOR_STORE.images[id]) el.src = EDITOR_STORE.images[id];
+    });
+
+    document.querySelectorAll('[data-ed-path]').forEach(el => {
+        const path = el.dataset.edPath;
+        if (!path) return;
+        const value = editorReadPathValue(path);
+        if (value != null) el.textContent = String(value);
+    });
+
+    editorUpdateTelHrefs();
+}
+
+function editorReadPathValue(path) {
+    const parts = String(path || '').split('.');
+    if (parts[0] !== 'svc' || parts.length < 2) return null;
+    const svc = getServices().find(s => s.id === parts[1]);
+    if (!svc) return null;
+    let node = svc;
+    for (let i = 2; i < parts.length; i++) {
+        if (node == null) return null;
+        node = node[parts[i]];
+    }
+    return (node === null || node === undefined) ? null : node;
+}
+
+function editorPathLabel(path) {
+    const parts = String(path || '').split('.');
+    if (parts[0] !== 'svc' || parts.length < 2) return path;
+    const svc = getServices().find(s => s.id === parts[1]);
+    const base = svc ? svc.title : parts[1];
+    const rest = parts.slice(2);
+    if (!rest.length) return base;
+    if (rest[0] === 'title') return base + ' · название';
+    if (rest[0] === 'shortDesc') return base + ' · описание';
+    if (rest[0] === 'masters') {
+        const k = parseInt(rest[1], 10);
+        const field = rest[2] === 'name' ? 'имя' : (rest[2] === 'desc' ? 'описание' : (rest[2] || ''));
+        return base + ' · мастер ' + (Number.isFinite(k) ? k + 1 : '') + ' · ' + field;
+    }
+    if (rest[0] === 'price') {
+        const bi = parseInt(rest[1], 10);
+        if (rest[2] === 'section') return base + ' · раздел ' + (Number.isFinite(bi) ? bi + 1 : '') + ' прайса';
+        if (rest[2] === 'items') {
+            const ii = parseInt(rest[3], 10);
+            const field = rest[4] === 'name' ? 'название' : (rest[4] === 'price' ? 'цена' : (rest[4] === 'meta' ? 'примечание' : (rest[4] || '')));
+            return base + ' · ' + (Number.isFinite(bi) ? bi + 1 : '') + '.' + (Number.isFinite(ii) ? ii + 1 : '') + ' · ' + field;
+        }
+    }
+    return path;
+}
+
+function editorUpdateTelHrefs() {
+    document.querySelectorAll('[data-editable-id^="site_phone_"], [data-editable-id^="contacts_phone"]').forEach(el => {
+        const a = el.closest('a[href^="tel:"]') || (el.tagName === 'A' && el.href.indexOf('tel:') === 0 ? el : null);
+        if (!a) return;
+        const digits = (el.textContent || '').replace(/[^0-9]/g, '');
+        if (digits) a.href = 'tel:+' + digits;
     });
 }
 
@@ -149,6 +207,7 @@ function openTextEditor(entry) {
             }
             el.textContent = value === '' ? (el.dataset.editorTextOrig || '') : value;
             editorSaveJSON('texts', EDITOR_STORE.texts);
+            editorUpdateTelHrefs();
             closeEditorModal();
             editorToast('Текст сохранён.');
         });
@@ -157,8 +216,58 @@ function openTextEditor(entry) {
             delete EDITOR_STORE.texts[id];
             el.innerHTML = el.dataset.editorTextOrigHtml || editorEscapeHtml(el.dataset.editorTextOrig || '');
             editorSaveJSON('texts', EDITOR_STORE.texts);
+            editorUpdateTelHrefs();
             closeEditorModal();
             editorToast('Текст сброшен к оригиналу.');
+        });
+
+        rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
+    });
+    void root;
+}
+
+/* --- Точечные правки структуры услуг (попап, прайс-листы) ---------------- */
+
+function openPathTextEditor(el) {
+    const path = el.dataset.edPath;
+    const current = el.textContent;
+    const label = editorPathLabel(path);
+
+    const root = editorOpenModal(`Редактировать <span class="ed-modal__id">${editorEscapeHtml(label)}</span>`, `
+        <div class="ed-field">
+            <label class="ed-field__label">Текст</label>
+            <textarea class="ed-input ed-textarea" rows="5">${editorEscapeHtml(current)}</textarea>
+        </div>
+        <div class="ed-actions">
+            <button type="button" class="ed-btn ed-btn--primary" data-ed-save>Сохранить</button>
+            ${EDITOR_STORE.paths[path] != null ? '<button type="button" class="ed-btn" data-ed-reset>Сбросить к оригиналу</button>' : ''}
+            <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Отмена</button>
+        </div>`, rootEl => {
+        const ta = rootEl.querySelector('textarea');
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+
+        rootEl.querySelector('[data-ed-save]').addEventListener('click', () => {
+            const value = ta.value.trim();
+            if (value === '') {
+                delete EDITOR_STORE.paths[path];
+            } else {
+                EDITOR_STORE.paths[path] = value;
+            }
+            editorSaveJSON('paths', EDITOR_STORE.paths);
+            const next = editorReadPathValue(path);
+            el.textContent = (next != null && String(next) !== '') ? String(next) : (value === '' ? current : value);
+            closeEditorModal();
+            editorToast('Сохранено.');
+        });
+
+        rootEl.querySelector('[data-ed-reset]').addEventListener('click', () => {
+            delete EDITOR_STORE.paths[path];
+            editorSaveJSON('paths', EDITOR_STORE.paths);
+            const value = editorReadPathValue(path);
+            if (value != null) el.textContent = String(value);
+            closeEditorModal();
+            editorToast('Сброшено к оригиналу.');
         });
 
         rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
@@ -391,6 +500,7 @@ function editorBuildPanel() {
     panel.querySelector('[data-ed-save]').addEventListener('click', () => {
         editorSaveJSON('texts', EDITOR_STORE.texts);
         editorSaveJSON('images', EDITOR_STORE.images);
+        if (EDITOR_STORE.paths && Object.keys(EDITOR_STORE.paths).length) editorSaveJSON('paths', EDITOR_STORE.paths);
         if (EDITOR_STORE.promos) editorSaveJSON('promos', EDITOR_STORE.promos);
         if (EDITOR_STORE.services) editorSaveJSON('services', EDITOR_STORE.services);
         if (EDITOR_STORE.portfolio) editorSaveJSON('portfolio', EDITOR_STORE.portfolio);
@@ -474,6 +584,13 @@ function activateEditor() {
 
     document.addEventListener('click', e => {
         if (!EDITOR_ACTIVE) return;
+        const pathEl = e.target.closest('[data-ed-path]');
+        if (pathEl) {
+            e.preventDefault();
+            e.stopPropagation();
+            openPathTextEditor(pathEl);
+            return;
+        }
         const textEl = e.target.closest('[data-editable="text"]');
         if (textEl) {
             e.preventDefault();

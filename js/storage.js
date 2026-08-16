@@ -6,6 +6,7 @@
 const EDITOR_KEYS = {
     texts: 'editable_texts',
     images: 'editable_images',
+    paths: 'service_paths',
     promos: 'promotions',
     services: 'services',
     portfolio: 'portfolio'
@@ -55,6 +56,7 @@ function editorStorageSupported() {
 const EDITOR_STORE = {
     texts: {},
     images: {},
+    paths: {},
     promos: null,
     services: null,
     portfolio: null
@@ -68,6 +70,7 @@ function editorExportData() {
     const data = {
         editable_texts: EDITOR_STORE.texts || {},
         editable_images: EDITOR_STORE.images || {},
+        service_paths: EDITOR_STORE.paths || {},
         promotions: EDITOR_STORE.promos || [],
         services: EDITOR_STORE.services || [],
         portfolio: EDITOR_STORE.portfolio || [],
@@ -94,18 +97,21 @@ function editorImportData(file) {
             const data = JSON.parse(reader.result);
             const texts = data.editable_texts && typeof data.editable_texts === 'object' ? data.editable_texts : {};
             const images = data.editable_images && typeof data.editable_images === 'object' ? data.editable_images : {};
+            const paths = data.service_paths && typeof data.service_paths === 'object' ? data.service_paths : {};
             const promos = Array.isArray(data.promotions) ? data.promotions : null;
             const services = Array.isArray(data.services) ? data.services : null;
             const portfolio = Array.isArray(data.portfolio) ? data.portfolio : null;
 
             editorSaveJSON('texts', texts);
             editorSaveJSON('images', images);
+            if (paths && Object.keys(paths).length) editorSaveJSON('paths', paths);
             if (promos) editorSaveJSON('promos', promos);
             if (services) editorSaveJSON('services', services);
             if (portfolio) editorSaveJSON('portfolio', portfolio);
 
             EDITOR_STORE.texts = texts;
             EDITOR_STORE.images = images;
+            EDITOR_STORE.paths = paths;
             EDITOR_STORE.promos = promos;
             EDITOR_STORE.services = services;
             EDITOR_STORE.portfolio = portfolio;
@@ -122,7 +128,7 @@ function editorImportData(file) {
 }
 
 function editorResetAll() {
-    if (!confirm('Сбросить ВСЕ изменения (тексты, изображения, акции, услуги, портфолио)? Действие необратимо.')) return;
+    if (!confirm('Сбросить ВСЕ изменения (тексты, изображения, услуги, акции, портфолио)? Действие необратимо.')) return;
     Object.keys(EDITOR_KEYS).forEach(k => {
         try { localStorage.removeItem(editorStorageKey(k)); } catch (_) { /* ignore */ }
     });

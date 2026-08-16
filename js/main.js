@@ -51,9 +51,33 @@ function svcImageKey(id, i) { return 'svc_' + id + '_img_' + i; }
 function svcMasterKey(id, k) { return 'svc_' + id + '_master_' + k; }
 function galleryImageKey(id) { return 'gallery_' + id; }
 
+/* Точечные текстовые правки структуры услуги: путь вида svc.<id>.price.0.items.1.name */
+function applyDeepPath(obj, parts, value) {
+    let node = obj;
+    for (let i = 0; i < parts.length - 1; i++) {
+        if (node == null) return;
+        node = node[parts[i]];
+    }
+    if (node == null || !parts.length) return;
+    const last = parts[parts.length - 1];
+    if (parts.length === 1 && (last === 'items' || last === 'masters' || last === 'images' || last === 'price')) return;
+    node[last] = value;
+}
+
+function applyServicePaths(copy, paths) {
+    if (!paths) return;
+    const prefix = 'svc.' + copy.id + '.';
+    Object.keys(paths).forEach(key => {
+        if (key.indexOf(prefix) !== 0) return;
+        const rel = key.slice(prefix.length).split('.').filter(Boolean);
+        if (rel.length) applyDeepPath(copy, rel, paths[key]);
+    });
+}
+
 function getServices() {
     const src = (window.MiEditorData && window.MiEditorData.services) || SERVICES;
     const imgs = (window.MiEditorData && window.MiEditorData.images) || {};
+    const paths = (window.MiEditorData && window.MiEditorData.paths) || {};
     return src.map(s => {
         const copy = Object.assign({}, s);
         if (Array.isArray(copy.images)) {
@@ -66,6 +90,7 @@ function getServices() {
                 return over ? Object.assign({}, m, { photo: over }) : m;
             });
         }
+        applyServicePaths(copy, paths);
         return copy;
     });
 }
@@ -118,11 +143,11 @@ function renderHeader(activePage) {
     const phones = CONFIG.phonesDisplay.map((p, i) =>
         `<a class="header__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">
             <span class="header__phone-label">${i === 0 ? 'Студия' : 'Запись'}</span>
-            <span class="header__phone-num">${p}</span>
+            <span class="header__phone-num" data-editable="text" data-editable-id="site_phone_${i}">${p}</span>
         </a>`).join('');
 
     const mobilePhones = CONFIG.phonesDisplay.map((p, i) =>
-        `<a class="mobile-nav__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">${p}</a>`
+        `<a class="mobile-nav__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}" data-editable="text" data-editable-id="site_phone_${i}">${p}</a>`
     ).join('');
 
     document.getElementById('header').innerHTML = `
@@ -220,7 +245,7 @@ function socialLinksHtml(iconSize = 18) {
 
 function renderFooter() {
     const phones = CONFIG.phonesDisplay.map((p, i) =>
-        `<a class="footer__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">${p}</a>`).join('');
+        `<a class="footer__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}" data-editable="text" data-editable-id="site_phone_${i}">${p}</a>`).join('');
 
     document.getElementById('footer').innerHTML = `
         <footer class="footer">
@@ -585,9 +610,9 @@ function openServicePopup(service) {
         <div class="service-popup">
             <header class="service-popup__head">
                 <p class="service-popup__eyebrow">Услуга</p>
-                <h2 class="popup__title service-popup__title">${service.title}</h2>
+                <h2 class="popup__title service-popup__title" data-ed-path="svc.${service.id}.title">${service.title}</h2>
                 <div class="grotesk-rule service-popup__rule" aria-hidden="true"></div>
-                <p class="popup__subtitle service-popup__desc">${service.shortDesc || ''}</p>
+                <p class="popup__subtitle service-popup__desc" data-ed-path="svc.${service.id}.shortDesc">${service.shortDesc || ''}</p>
             </header>
             <div class="service-popup__body">
                 ${renderServicePopupBody(service)}
@@ -1390,7 +1415,7 @@ function renderServiceCard(service) {
         <article class="detail-card" id="${service.id}">
             ${carouselHtml}
             <div class="detail-card__head">
-                <h2 class="detail-card__title">${service.title}</h2>
+                <h2 class="detail-card__title" data-ed-path="svc.${service.id}.title">${service.title}</h2>
                 <div class="masters">${masters}</div>
             </div>
             <div class="detail-card__price">${price}${priceTextHtml}</div>
@@ -1563,8 +1588,8 @@ function renderServicePreviews() {
                     <img src="${(s.images && s.images[0]) || ''}" alt="${s.title}" loading="lazy" draggable="false" data-editor-img="${svcImageKey(s.id, 0)}">
                 </div>
                 <div class="service-card__body">
-                    <div class="service-card__title">${s.title}</div>
-                    <div class="service-card__desc">${s.shortDesc}</div>
+                    <div class="service-card__title" data-ed-path="svc.${s.id}.title">${s.title}</div>
+                    <div class="service-card__desc" data-ed-path="svc.${s.id}.shortDesc">${s.shortDesc}</div>
                     <span class="service-card__more">Подробнее &rarr;</span>
                 </div>
             </div>
@@ -1610,9 +1635,9 @@ function renderServicePopupBody(service) {
             <article class="master-card">
                 <div class="master-card__photo">${photo}</div>
                 <div class="master-card__body">
-                    ${surname ? `<p class="master-card__surname">${surname}</p>` : ''}
-                    <h4 class="master-card__name">${given || m.name}</h4>
-                    <p class="master-card__desc">${m.desc || ''}</p>
+                    ${surname ? `<p class="master-card__surname" data-ed-path="svc.${service.id}.masters.${k}.name">${surname}</p>` : ''}
+                    <h4 class="master-card__name" data-ed-path="svc.${service.id}.masters.${k}.name">${given || m.name}</h4>
+                    <p class="master-card__desc" data-ed-path="svc.${service.id}.masters.${k}.desc">${m.desc || ''}</p>
                 </div>
             </article>`;
     }).join('');
@@ -1620,17 +1645,17 @@ function renderServicePopupBody(service) {
     const price = (Array.isArray(service.price) ? service.price : []).map((block, bi) => `
         <details class="price-sheet" ${bi === 0 ? 'open' : ''}>
             <summary class="price-sheet__head">
-                <span>${block.section}</span>
+                <span data-ed-path="svc.${service.id}.price.${bi}.section">${block.section}</span>
                 <span class="price-sheet__count">${block.items.length}</span>
             </summary>
             <div class="price-sheet__body">
-                ${block.items.map(it => `
+                ${block.items.map((it, ii) => `
                     <div class="price-sheet__row">
                         <div class="price-sheet__info">
-                            <span class="price-sheet__name">${it.name}</span>
-                            ${it.meta ? `<span class="price-sheet__meta">${it.meta}</span>` : ''}
+                            <span class="price-sheet__name" data-ed-path="svc.${service.id}.price.${bi}.items.${ii}.name">${it.name}</span>
+                            ${it.meta ? `<span class="price-sheet__meta" data-ed-path="svc.${service.id}.price.${bi}.items.${ii}.meta">${it.meta}</span>` : ''}
                         </div>
-                        <span class="price-sheet__price">${it.price}</span>
+                        <span class="price-sheet__price" data-ed-path="svc.${service.id}.price.${bi}.items.${ii}.price">${it.price}</span>
                     </div>`).join('')}
             </div>
         </details>`).join('');
