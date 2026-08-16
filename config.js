@@ -3,7 +3,7 @@ const CONFIG = {
     apiVersion: 'v1',                           // позже станет 'v2'
     pocketbaseUrl: 'http://localhost:8090',     // PocketBase (dev); на проде — реальный URL
     usePocketbase: false,                       // true = тянуть услуги из PocketBase (v2.0)
-    leadWebhookUrl: 'https://script.google.com/macros/s/AKfycbwsvC6pFUrUIqa0OM4_1z8eLzbgJbINSfr968wXjOKvbhnjmTuRNi7ZRae5fEfH1jpeMQ/exec', // заявки → беседа VK + email (GAS-вебхук, корпоративная почта)
+    leadWebhookUrl: 'https://script.google.com/macros/s/AKfycbxHCvTiIsjHHaluHGnObSLd6mPVy0MpL_3BC0yZ5HVwBRC1VHc3t4vkGvXSkeNjNOV9fA/exec', // заявки → беседа VK + email (GAS-вебхук, корпоративная почта)
     // Заявки идут в беседу VK (webhook/vk-webhook.gs) + email-дубль на studiomi588@gmail.com.
     vkBotUrl: '',                               // задел, не используется
     dikidiUrl: 'https://dikidi.net/2049120?p=0.pi',
