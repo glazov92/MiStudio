@@ -3379,6 +3379,10 @@ body.nav-open {
     overflow-y: auto;
 }
 
+.msel__done {
+    margin-top: 8px;
+}
+
 .msel__option {
     display: flex;
     align-items: center;

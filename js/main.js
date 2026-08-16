@@ -305,6 +305,7 @@ function renderPopup() {
                             </button>
                             <div class="msel__dropdown" id="msel-dropdown" hidden role="listbox">
                                 ${serviceItems}
+                                <button type="button" class="btn btn--accent btn--block msel__done" id="msel-done">Добавить</button>
                             </div>
                         </div>
                     </div>
@@ -963,6 +964,11 @@ function initLeadForm() {
         else closeMsel();
     });
 
+    document.getElementById('msel-done')?.addEventListener('click', e => {
+        e.stopPropagation();
+        closeMsel();
+    });
+
     document.getElementById('msel-dropdown')?.addEventListener('change', e => {
         const cb = e.target.closest('input[type="checkbox"]');
         if (!cb) return;
@@ -1047,35 +1053,6 @@ function resetLeadForm() {
     closePhoneCountryDd();
 }
 
-function downloadLeadTxt(payload) {
-    const lines = [
-        'Заявка на визит — Mi Studio',
-        '============================',
-        `Дата заявки: ${new Date().toLocaleString('ru-RU')}`,
-        '',
-        `Имя: ${payload.name}`,
-        `Контакты: ${payload.contacts}`,
-        `Услуги: ${payload.services.join(', ')}`,
-        `Акции: ${payload.promos?.length ? payload.promos.join(', ') : '—'}`,
-        `Желаемые даты: ${payload.visit_dates_display}`,
-        `Комментарий: ${payload.comment || '—'}`,
-        '',
-        '--- raw ---',
-        JSON.stringify(payload, null, 2)
-    ];
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
-    a.href = url;
-    a.download = `zayavka-mi-studio-${stamp}.txt`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-}
-
 /* --------------------------------------------------------------------------
    Заявки: единая точка входа (задел на v2.0)
    -------------------------------------------------------------------------- */
@@ -1086,8 +1063,6 @@ async function submitLead(formData) {
         source: 'website',
         version: '1.0'
     };
-
-    downloadLeadTxt(payload);
 
     if (CONFIG.leadWebhookUrl) {
         try {
@@ -1207,7 +1182,7 @@ function onLeadSubmit(e) {
             bumpSessionLeadCount();
             status.className = 'form__status is-show form__status--ok';
             status.textContent = res.dev
-                ? 'Заявка сформирована — txt-файл скачан (debug).'
+                ? 'Заявка сформирована (debug — вебхук не настроен).'
                 : 'Спасибо! Заявка отправлена — мы свяжемся с вами.';
             resetLeadForm();
         } else {
