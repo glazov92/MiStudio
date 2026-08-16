@@ -1,15 +1,24 @@
 /* ==========================================================================
    Frontend-редактор: ядро
-   Активация: https://site.com/?edit=КЛЮЧ (EDITOR_CONFIG.secretKey).
+   Активация: https://site.com/?edit=КЛЮЧ или https://site.com/?КЛЮЧ
+   (EDITOR_CONFIG.secretKey). Слэш в конце адреса не важен — работает и
+   file:///.../index.html?edit=КЛЮЧ, и file:///.../index.html/?edit=КЛЮЧ.
    Сохранение данных — localStorage (см. js/storage.js, ТЗ раздел 4).
    ========================================================================== */
 
 let EDITOR_ACTIVE = false;
 let EDITOR_ELEMENTS = { texts: [], images: [] };
 
-function editorModeActive() {
+function editorModeActive(searchStr) {
     try {
-        return new URLSearchParams(location.search).get('edit') === EDITOR_CONFIG.secretKey;
+        const key = EDITOR_CONFIG.secretKey;
+        const p = new URLSearchParams(searchStr !== undefined ? searchStr : location.search);
+        if (p.get('edit') === key) return true;        // ?edit=КЛЮЧ
+        if (p.has(key)) return true;                   // ?КЛЮЧ (голый ключ)
+        for (const v of p.values()) {
+            if (v === key) return true;                // ?x=КЛЮЧ
+        }
+        return false;
     } catch (e) {
         return false;
     }
@@ -568,6 +577,7 @@ function editorExit() {
     try {
         const url = new URL(location.href);
         url.searchParams.delete('edit');
+        url.searchParams.delete(EDITOR_CONFIG.secretKey);
         location.href = url.toString();
     } catch (e) {
         location.href = location.pathname + location.hash;
@@ -813,6 +823,18 @@ editorLoadStore();
 window.MiEditorData = EDITOR_STORE;
 
 document.addEventListener('DOMContentLoaded', () => {
+    try {
+        if (!editorModeActive() && location.search) {
+            const qp = new URLSearchParams(location.search);
+            const editVal = qp.get('edit');
+            const keyAttempt = location.search.indexOf(EDITOR_CONFIG.secretKey.slice(0, 5)) !== -1;
+            if (editVal !== null && editVal !== '' && editVal !== EDITOR_CONFIG.secretKey) {
+                editorToast('Неверный ключ админки. Проверь ключ и попробуй ещё раз.', true);
+            } else if (editVal === '' || keyAttempt) {
+                editorToast('Не тот адрес: в конце адреса добавь ?edit=КЛЮЧ (или просто ?КЛЮЧ).', true);
+            }
+        }
+    } catch (e) { /* подсказка — не критично */ }
     editorApplySaved();
     if (editorModeActive()) {
         editorScan();
