@@ -153,10 +153,44 @@ function safeVersionId($id) {
     return is_file($file) ? $id : null;
 }
 
+/* Защита от кросс-сайтовых запросов (CSRF-стиль): если браузер прислал
+   заголовок Origin, он должен быть своим доменом (или localhost — для
+   локальной разработки). Запросы без Origin (curl, скрипты) проходят:
+   это «защёлка», а не стена. */
+function originAllowed() {
+    if (empty($_SERVER['HTTP_ORIGIN'])) return true;
+    $origin = trim($_SERVER['HTTP_ORIGIN']);
+    $o = parse_url($origin);
+    if (!isset($o['host'])) return false;
+    $h = strtolower($o['host']);
+    if ($h === 'localhost' || $h === '127.0.0.1' || $h === '[::1]') return true;
+    $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : '';
+    $host = strtolower(preg_replace('/:\d+$/', '', $host));
+    return $h === $host;
+}
+
+/* Тормоз частых записей: не чаще одного раза в секунду. Мешает перебору
+   ключа и затиранию данных автоматическими «молотками». Человеку, который
+   нажимает кнопки мышью, не мешает. */
+function throttleWrite($seconds = 1.0) {
+    $f = dirname(STORE_FILE) . '/.lastwrite';
+    $now = microtime(true);
+    if (is_file($f)) {
+        $last = (float) @file_get_contents($f);
+        if ($now - $last < $seconds) {
+            respond(array('ok' => false, 'error' => 'slow down'), 429);
+        }
+    }
+    @file_put_contents($f, sprintf('%.3f', $now), LOCK_EX);
+}
+
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
 if ($method === 'GET') {
     if (isset($_GET['action']) && $_GET['action'] === 'versions') {
+        if (!originAllowed()) {
+            respond(array('ok' => false, 'error' => 'forbidden'), 403);
+        }
         if ((isset($_GET['key']) ? $_GET['key'] : '') !== CMS_KEY) {
             respond(array('ok' => false, 'error' => 'forbidden'), 403);
         }
@@ -166,6 +200,9 @@ if ($method === 'GET') {
 }
 
 if ($method === 'POST') {
+    if (!originAllowed()) {
+        respond(array('ok' => false, 'error' => 'forbidden'), 403);
+    }
     $raw  = file_get_contents('php://input');
     $body = json_decode($raw, true);
     if (!is_array($body)) {
@@ -176,6 +213,9 @@ if ($method === 'POST') {
     if ($key !== CMS_KEY) {
         respond(array('ok' => false, 'error' => 'forbidden'), 403);
     }
+
+    /* Один write-POST в секунду (в т.ч. откаты) */
+    throttleWrite();
 
     if (isset($body['action']) && $body['action'] === 'restore') {
         $id = safeVersionId(isset($body['version']) ? $body['version'] : '');

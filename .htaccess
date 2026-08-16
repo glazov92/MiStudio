@@ -1,0 +1,34 @@
+# MiStudio — защита на хостинге (Apache / ispmanager).
+# Применяется только на сервере; локально (php -S) не действует.
+
+# 1) Запрет листинга папок (не показываем содержимое data/, js/, img/ и т.д.)
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # 2) Закрыть служебные файлы и папки, начинающиеся с точки:
+    #    .git, .env, .htaccess, .lastwrite и т.п. (исключая .well-known — ACME)
+    RewriteCond %{REQUEST_URI} (^|/)\.(?!well-known) [NC]
+    RewriteRule .* - [F,L]
+
+    # 3) Всё принудительно по HTTPS (защита от подмены SSL / SSL-stripping).
+    #    Работает только после того, как на хостинге выпущен SSL-сертификат.
+    RewriteCond %{HTTPS} off
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    # Браузер должен честно обрабатывать тип файла (не сниффить)
+    Header set X-Content-Type-Options "nosniff"
+    # Защита от кликджекинга: сайт нельзя вставить в чужой iframe
+    Header set X-Frame-Options "DENY"
+    # Не отдавать полный адрес страницы на чужие сайты
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    # HSTS: браузер будет ходить ТОЛЬКО по HTTPS для этого домена.
+    # Это прямой ответ на «подмену SSL»: даже если пользователь вручную введёт
+    # http://домен, браузер сам перейдёт на https:// и отклонит поддельный сертификат.
+    # Заголовок отдаётся только по HTTPS (env=HTTPS) — при настройке сайта по
+    # http:// он не мешает. Сработает автоматически после шага 6 в DEPLOY-ADMINVPS.md.
+    Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>
