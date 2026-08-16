@@ -33,6 +33,20 @@ const leadFormState = {
     viewMonth: null
 };
 
+const spamGuard = {
+    createdMs: Date.now(),
+    lastSentMs: 0
+};
+
+function getSessionLeadCount() {
+    const n = parseInt(sessionStorage.getItem('mi_lead_count') || '0', 10);
+    return Number.isFinite(n) ? n : 0;
+}
+
+function bumpSessionLeadCount() {
+    sessionStorage.setItem('mi_lead_count', String(getSessionLeadCount() + 1));
+}
+
 function flagUrl(iso) {
     return `${FLAG_CDN}/${String(iso).toLowerCase()}.svg`;
 }
@@ -311,6 +325,10 @@ function renderPopup() {
                     <div class="form__field">
                         <label class="form__label" for="lead-comment">Комментарий</label>
                         <textarea class="form__textarea" id="lead-comment" name="comment" placeholder="Пожелания, вопросы..."></textarea>
+                    </div>
+                    <div class="hp-wrap" style="position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden" aria-hidden="true">
+                        <label for="lead-hp">Оставьте это поле пустым</label>
+                        <input type="text" id="lead-hp" name="website" tabindex="-1" autocomplete="off">
                     </div>
                     <div class="form__actions">
                         <button type="submit" class="btn btn--accent btn--block">Отправить заявку</button>
@@ -1078,10 +1096,12 @@ async function submitLead(formData) {
                 body: JSON.stringify(payload)
             });
             if (!res.ok) throw new Error('HTTP ' + res.status);
+            const j = await res.json().catch(() => null);
+            if (j && j.ok === false) return { ok: false, reason: j.error || 'server' };
             return { ok: true };
         } catch (e) {
             console.error('submitLead:', e);
-            return { ok: false, error: e };
+            return { ok: false, reason: 'network' };
         }
     }
 
@@ -1093,6 +1113,30 @@ function onLeadSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const status = document.getElementById('lead-status');
+
+    const hp = document.getElementById('lead-hp');
+    if (hp && hp.value.trim() !== '') {
+        status.className = 'form__status is-show form__status--ok';
+        status.textContent = 'Спасибо! Заявка отправлена — мы свяжемся с вами.';
+        resetLeadForm();
+        return;
+    }
+    if (Date.now() - spamGuard.createdMs < 2500) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Форма ещё загружается. Попробуйте ещё раз.';
+        return;
+    }
+    if (Date.now() - spamGuard.lastSentMs < 30000) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Слишком много заявок подряд — подождите полминуты.';
+        return;
+    }
+    if (getSessionLeadCount() >= 5) {
+        status.className = 'form__status is-show form__status--err';
+        status.textContent = 'Достигнут лимит заявок в этой сессии. Позвоните нам.';
+        return;
+    }
+
     const name = (form.name?.value || '').trim();
     const comment = (form.comment?.value || '').trim();
     const contacts = getContactsPayload();
@@ -1159,6 +1203,8 @@ function onLeadSubmit(e) {
 
     submitLead(data).then(res => {
         if (res.ok) {
+            spamGuard.lastSentMs = Date.now();
+            bumpSessionLeadCount();
             status.className = 'form__status is-show form__status--ok';
             status.textContent = res.dev
                 ? 'Заявка сформирована — txt-файл скачан (debug).'
@@ -1166,7 +1212,11 @@ function onLeadSubmit(e) {
             resetLeadForm();
         } else {
             status.className = 'form__status is-show form__status--err';
-            status.textContent = 'Не удалось отправить. Попробуйте ещё раз или позвоните нам.';
+            if (res.reason === 'rate' || res.reason === 'daily') {
+                status.textContent = 'На сервере перебор заявок. Попробуйте через несколько минут.';
+            } else {
+                status.textContent = 'Не удалось отправить. Попробуйте ещё раз или позвоните нам.';
+            }
         }
     });
 }
