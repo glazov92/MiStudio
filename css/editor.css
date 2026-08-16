@@ -3,11 +3,12 @@
    ========================================================================== */
 
 body.editor-active {
-    padding-top: 58px;
+    /* --ed-panel-h задаётся редактором по фактической высоте панели (см. editorApplyPanelOffset) */
+    padding-top: var(--ed-panel-h, 58px);
 }
 
 body.editor-active #header {
-    top: 58px;
+    top: var(--ed-panel-h, 58px);
 }
 
 /* --- Панель управления (фиксированная, сверху) -------------------------- */
@@ -290,6 +291,25 @@ body.editor-active [data-editable="image"]:focus-visible {
     background: #f0ede6;
 }
 
+.ed-btn--restore {
+    font-size: 13px;
+    padding: 6px 10px;
+    flex-shrink: 0;
+    color: #b8975a;
+    border-color: #e3d5b9;
+    margin-left: auto;
+}
+
+.ed-btn--restore:hover {
+    background: #faf5ea;
+}
+
+.ed-btn:disabled,
+.ed-btn[disabled] {
+    opacity: 0.55;
+    cursor: wait;
+}
+
 .ed-urlrow {
     display: flex;
     gap: 8px;
@@ -518,14 +538,6 @@ body.editor-active [data-editable="image"]:focus-visible {
         width: 100%;
     }
 
-    body.editor-active {
-        padding-top: 96px;
-    }
-
-    body.editor-active #header {
-        top: 96px;
-    }
-
     .ed-row {
         grid-template-columns: 1fr;
     }
@@ -548,4 +560,85 @@ body.editor-active [data-editor-img]:hover {
 }
 body.editor-active [data-editor-img] {
     position: relative;
+}
+
+/* --- Конструктор услуги: иерархия «раздел → позиция», «мастер» ----------- */
+
+.ed-price-sec {
+    border: 1px solid #E5DFD3;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px 0;
+    background: #FAF7F0;
+}
+
+.ed-price-sec__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.ed-price-sec__head--tag {
+    margin-bottom: 6px;
+}
+
+.ed-tag {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: #6B5B3F;
+    background: #EDE4D2;
+    border: 1px solid #DCCBA9;
+    border-radius: 6px;
+    padding: 2px 8px;
+}
+
+.ed-tag--item {
+    color: #7A5A3A;
+    background: #F5EDE0;
+    border-color: #E4D4B8;
+}
+
+.ed-price-items {
+    border-top: 1px dashed #E0D6C2;
+    padding-top: 8px;
+    display: grid;
+    gap: 8px;
+}
+
+.ed-price-item {
+    border: 1px solid #EADFCA;
+    border-radius: 8px;
+    padding: 8px;
+    background: #FFFDF8;
+}
+
+.ed-price-item__row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 130px;
+    gap: 6px;
+}
+
+.ed-master-row {
+    border: 1px solid #E5DFD3;
+    border-radius: 10px;
+    padding: 10px;
+    margin: 10px 0;
+    background: #FAF7F0;
+    display: grid;
+    gap: 6px;
+}
+
+.ed-master-row .ed-input {
+    width: 100%;
+}
+
+@media (max-width: 768px) {
+    .ed-price-item__row {
+        grid-template-columns: 1fr;
+    }
 }

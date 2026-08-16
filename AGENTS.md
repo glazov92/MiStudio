@@ -2,27 +2,31 @@
 
 ## СТАТУС (на 12.08.2026) — продолжение в новой сессии
 **Готово (v1.0):**
-- 4 страницы (index, services, portfolio, contacts) + единые css/style.css и js/main.js.
+- Лендинг: один index.html со всеми секциями (акции, услуги, о нас, портфолио, контакты) + единые css/style.css и js/main.js. Отдельные services.html/portfolio.html/contacts.html/404.html удалены (были осиротевшими).
 - Общие компоненты рендерятся JS: хедер (sticky, бургер, дропдаун «Услуги»), футер, попапы (заявка, политика, услуга), плавающие кнопки WA/TG/звонок, sticky-CTA на мобильных.
-- Услуги: 5 категорий из js/data.js; на services.html прайсы — аккордеоны (`details.price-acc`); на главной карточки открывают попап с деталями категории (`data-open-service`).
+- Услуги: 5 категорий из js/data.js; прайсы — аккордеоны (`details.price-acc`), карточки открывают попап с деталями категории (`data-open-service`).
 - Карусели (стрелки + свайп), галерея с лайтбоксом, Яндекс-карта, форма заявки с полем visit_time.
 - Фото: локальные в img/ (скачаны с mibeauty-studio.ru). Дизайн-токены ниже.
-- Визуальный редактор контента: правки текстов и изображений + CRUD-менеджеры акций, услуг и портфолио (localStorage) — см. раздел «Визуальный редактор».
+- Визуальный редактор контента: правки текстов и изображений + CRUD-менеджеры акций, услуг и портфолио (localStorage + PHP-синхронизация на сервере через content-sync.php) — см. раздел «Визуальный редактор».
+- Развёртывание на AdminVPS (тариф Promo, виртуальный хостинг, панель ispmanager, PHP): пошаговый гайд `DEPLOY-ADMINVPS.md`. PHP-скрипт `content-sync.php` хранит правки админки в `data/editor-store.json` — изменения видны всем посетителям.
 - Проверка: Edge headless `msedge.exe --headless --disable-gpu --dump-dom file:///...` рендерит все страницы без JS-ошибок.
 
 **Осталось (открытые задачи):**
-1. **Telegram-вебхук** (`webhook/telegram-webhook.gs`): заполнить `EMAIL_TO`, задеплоить как Web App в script.google.com (Доступ: Все), открыть `<url>?debug` → `<url>?setchat=ID`, затем URL вписать в `CONFIG.leadWebhookUrl` в config.js. Бот создан в личном аккаунте владельца (позже передать: токен или @BotFather → Transfer ownership).
-2. **PocketBase** (локально, порт 8090): коллекции `services`, `promos`, `leads`; наполнить services из js/data.js; `CONFIG.usePocketbase` сейчас false — включать осторожно (рендер ждёт полей коллекций).
+1. **Развернуть сайт на AdminVPS Promo** по `DEPLOY-ADMINVPS.md` (заказ хостинга, домен/DNS, загрузка файлов, SSL, заменить ключ CMS_KEY в config.js и content-sync.php).
+2. **Telegram-вебхук** (`webhook/telegram-webhook.gs`): резерв — не используется (основной канал — VK-бот + email).
 3. VK-бот — только задел (`CONFIG.vkBotUrl` пусто), в v1.0 не делать.
 
 **Важно:** на этой машине НЕТ node. Проверять JS можно через Edge headless или Python. Сайт живёт в `C:\Users\user\Desktop\MiStudio\`, контент-донор — `Desktop\Mi studio 2\`, живой референс — https://mibeauty-studio.ru/.
 
-## Визуальный редактор (?edit=123)
-- Включение: добавить к URL страницы `?edit=123` (ключ пароля — 123, при неверном ключе панель не показывается). Ветка: `feature/admin-cms`.
+## Визуальный редактор (?edit=sLQSSJCRpwRrsdYSNhQR)
+- Пользовательский гайд для владельца сайта: `ADMIN.md` (как войти, править тексты/картинки, менеджеры, сохранение, экспорт/импорт, откат, как изменения попадают на хостинг).
+- Включение: добавить к URL страницы `?edit=sLQSSJCRpwRrsdYSNhQR` (ключ пароля — sLQSSJCRpwRrsdYSNhQR, при неверном ключе панель не показывается). Ветка: `feature/admin-cms`.
 - Правка текста: в режиме редактирования клик по тексту → модальное окно → Сохранить / Сбросить к оригиналу. Правка картинки: клик по `<img data-editable="image">` → загрузка файла, превью, автожаттие до 1600px, сохранение в base64.
 - Секции: панель внизу страницы → «Акции», «Услуги», «Портфолио» → менеджер (добавить/редактировать/удалить/перетаскивать для сортировки). После сохранения секция пере-рендерится без перезагрузки (функции `renderPromos`/`renderServicePreviews`/`renderGallery` и т.д. — пере-инициализация каруселей/лайтбокса идемпотентна через `__*Cleanup`).
 - Данные хранятся в localStorage (ключи `miedit_texts`, `miedit_images`, `miedit_promos`, `miedit_services`, `miedit_portfolio`), применяются при загрузке страницы. Импорт/экспорт JSON и сброс — в панели. Ограничения: правки локальны для браузера и привязаны к `data-editable-id` (не менять эти id в HTML без причины).
-- Изображения: редактируются ВСЕ — hero, «О нас», карточки услуг, слайды каруселей (services.html), фото мастеров в попапах, галерея. Разметка динамических: атрибут `data-editor-img="<ключ>"`, ключи `svc_<id>_img_<i>` / `svc_<id>_master_<k>` / `gallery_<id>` (см. `svcImageKey`/`galleryImageKey` в js/main.js). Полный список — кнопка «🖼️ Изображения» в панели (работает и когда открыт попап: клик по любому `<img>` в режиме редактирования открывает замену). Оверрайды применяются в `getServices()`/`getPortfolioItems()`.
+- **PHP-синхронизация (v1.1):** при `EDITOR_CONFIG.serverSync.enabled=true` каждое сохранение дополнительно отправляет полный снимок правок на `content-sync.php` (POST `{key, data}`), а при загрузке страницы правки подтягиваются (GET) и применяются (`editorApplyServerData` — для карт тексты/картинки/paths/links серверные значения побеждают по ключу, локальные не затираются; для списков акции/услуги/портфолио сервер полностью побеждает). Кнопка «💾 Сохранить» показывает «опубликовано на сервере ✓» либо «сохранено локально». «🗑️ Сбросить» очищает и сервер. Ключ записи — `serverSync.key` в config.js = `CMS_KEY` в content-sync.php. Скрипт пишет в `data/editor-store.json` (папка защищена .htaccess, в git не идёт). Offline/без сервера (file://, старый деплой) — всё работает только на localStorage.
+- **Версии правок (v1.2, «🕘 История»):** при каждом успешном POST-сохранении `content-sync.php` делает снапшот в `data/versions/v-<Ymd>-<His>[-N].json` (последние `MAX_VERSIONS`=15, файлы до `MAX_SNAPSHOT_BYTES`=1,5 МБ; папка создаётся со своим `.htaccess`). Эндпоинты: GET `?action=versions&key=` → `{ok, versions:[{id,time}], max}`; POST `{action:'restore', key, version}` — перед откатом текущее состояние тоже сохраняется как версия (откат отменяем). `safeVersionId` валидирует id (`v-\d{8}-\d{6}(-\d+)?`), путь за пределы versions исключён. Фронт: `editorSyncVersions()`/`editorSyncRestore()` (js/storage.js), кнопка `data-ed-history` + `openHistoryModal()` (js/editor.js), стили `.ed-btn--restore` (css/editor.css). Бэкап-гайд (3 уровня: История → Экспорт JSON → модуль ispmanager) — раздел 9 в DEPLOY-ADMINVPS.md, ADMIN.md раздел 11.
+- Изображения: редактируются ВСЕ — hero, «О нас», карточки услуг, слайды каруселей, фото мастеров в попапах, галерея. Разметка динамических: атрибут `data-editor-img="<ключ>"`, ключи `svc_<id>_img_<i>` / `svc_<id>_master_<k>` / `gallery_<id>` (см. `svcImageKey`/`galleryImageKey` в js/main.js). Полный список — кнопка «🖼️ Изображения» в панели (работает и когда открыт попап: клик по любому `<img>` в режиме редактирования открывает замену). Оверрайды применяются в `getServices()`/`getPortfolioItems()`.
 - Менеджеры акций/услуг/портфолио по умолчанию показывают исходные данные (не пустоту) и сохраняют весь список при первом изменении.
 - Точечные правки структуры услуг: `data-ed-path="svc.<id>.<path>"` (title, shortDesc, price.<i>.section / items.<j>.name / meta / price, masters.<k>.name / desc). Хранятся в `EDITOR_STORE.paths` (localStorage `miedit_service_paths`), применяются в `getServices()` через `applyServicePaths`/`applyDeepPath`. Клик по тексту в попапе/карточке/прайс-аккордеоне открывает редактор. Путь с одним сегментом-массивом (items/masters/images/price) как лист блокируется.
 - Единые телефоны `site_phone_0/1` во всех местах (хедер, мобильное меню, футер, контакты): правка одного обновляет `tel:` во всех ссылках через `editorUpdateTelHrefs`.
@@ -34,24 +38,23 @@
 - Чистый HTML/CSS/JS (без фреймворков, без сборщиков).
 - Шрифт: Onest (Google Fonts), 300–700.
 - Сетки: Flexbox. Брейкпоинт мобильной адаптации: 768px.
-- Админка: PocketBase (внешняя, порт 8090).
+- Админка: PHP-синхронизация на хостинге (content-sync.php + JSON-файл). PocketBase как серверный слой — отменён (shared-хостинг, избыточен).
 - Обратная связь v1.0: вебхук → Telegram + email-дубль.
 
 ## Структура
 ```
 MiStudio/
-├── index.html           — Главная
-├── services.html        — Услуги (5 категорий с прайсом)
-├── portfolio.html       — Портфолио
-├── contacts.html        — Контакты
+├── index.html           — Лендинг (все секции: акции, услуги, о нас, портфолио, контакты)
 ├── config.js            — Конфигурация (URL, телефоны, адрес)
+├── content-sync.php     — PHP-синхронизация правок админки (data/editor-store.json)
 ├── css/style.css        — Единый файл стилей
 ├── css/editor.css       — Стили панели и модалок редактора
 ├── js/main.js           — Единый файл скриптов
 ├── js/data.js           — Локальный контент (5 категорий, прайс)
 ├── js/storage.js        — localStorage/JSON/импорт-экспорт для редактора
-├── js/editor.js         — Ядро визуального редактора (?edit=123)
+├── js/editor.js         — Ядро визуального редактора (?edit=sLQSSJCRpwRrsdYSNhQR)
 ├── js/sections/         — Менеджеры секций редактора (promotions, services, portfolio)
+├── data/                — Защищённая папка с правками админки (в git не идёт)
 └── img/                 — Изображения
 ```
 
@@ -74,6 +77,7 @@ MiStudio/
 4. PocketBase коллекция `leads` — статусы: v1.0 `new`, в v2.0 добавятся `processing`, `pending_confirmation`, `confirmed`, `cancelled`.
 5. URL-структура API: `/api/v1/leads` (сейчас), `/api/v2/leads` (потом).
 6. Контент услуг лежит в `js/data.js`. В v2.0 подтягивается с PocketBase через REST (fetch), кэш в localStorage. Переключение источника — через `CONFIG.pocketbaseUrl` в `config.js`, рендер тот же.
+   - Уточнение (16.08.2026): вместо PocketBase на хостинге используется лёгкая PHP-синхронизация правок админки (`content-sync.php`); PocketBase остаётся опцией v2.0, но по текущему стеку не требуется.
 
 ## Обратная связь: VK-бот сообщества + Email (с 16.08.2026 — основной канал)
 - Группа-бот: Studiomi.bot (club240886388). Токен с правом messages хранится ТОЛЬКО в `webhook/vk-webhook.gs` (не в репозитории/не в config.js).

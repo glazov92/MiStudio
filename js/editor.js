@@ -22,6 +22,7 @@ function editorLoadStore() {
     EDITOR_STORE.promos = editorLoadJSON('promos', null);
     EDITOR_STORE.services = editorLoadJSON('services', null);
     EDITOR_STORE.portfolio = editorLoadJSON('portfolio', null);
+    EDITOR_STORE.links = editorLoadJSON('links', null);
     if (!editorStorageSupported()) {
         editorToast('localStorage недоступен (режим инкогнито) — изменения не сохранятся.', true);
     }
@@ -52,6 +53,41 @@ function editorApplySaved() {
     });
 
     editorUpdateTelHrefs();
+}
+
+/* --- Применение правок, полученных с сервера ---------------------------- */
+
+function editorApplyServerData(server) {
+    try {
+        if (!server || typeof server !== 'object') return;
+        let changed = false;
+        const mergeMap = (store, key) => {
+            const src = server[key];
+            if (src && typeof src === 'object' && !Array.isArray(src)) {
+                const merged = Object.assign({}, EDITOR_STORE[store], src);
+                if (JSON.stringify(merged) !== JSON.stringify(EDITOR_STORE[store])) {
+                    EDITOR_STORE[store] = merged;
+                    changed = true;
+                }
+            }
+        };
+        mergeMap('texts', 'editable_texts');
+        mergeMap('images', 'editable_images');
+        mergeMap('paths', 'service_paths');
+        mergeMap('links', 'links');
+        ['promotions', 'services', 'portfolio'].forEach(k => {
+            if (Array.isArray(server[k]) && JSON.stringify(server[k]) !== JSON.stringify(EDITOR_STORE[k])) {
+                EDITOR_STORE[k] = server[k];
+                changed = true;
+            }
+        });
+        if (!changed) return;
+        editorApplySaved();
+        ['promotions', 'services', 'portfolio', 'links'].forEach(k => editorRerenderSection(k));
+        if (editorModeActive()) editorToast('Правки загружены с сервера.');
+    } catch (e) {
+        console.warn('[editor] editorApplyServerData:', e);
+    }
 }
 
 function editorReadPathValue(path) {
@@ -474,9 +510,11 @@ function editorBuildPanel() {
             <button type="button" data-ed-section="promotions" title="Акции">🎯 Акции</button>
             <button type="button" data-ed-section="services" title="Услуги">🔧 Услуги</button>
             <button type="button" data-ed-section="portfolio" title="Портфолио">📁 Портфолио</button>
+            <button type="button" data-ed-section="links" title="Ссылки и соцсети">🔗 Ссылки</button>
         </div>
         <div class="ed-panel__tools">
             <button type="button" data-ed-save title="Сохранить">💾 Сохранить</button>
+            <button type="button" data-ed-history title="История версий на сервере (снапшоты правок)">🕘 История</button>
             <button type="button" data-ed-export title="Скачать JSON">📤 Экспорт</button>
             <button type="button" data-ed-import title="Загрузить JSON">📥 Импорт</button>
             <button type="button" data-ed-reset title="Сбросить всё">🗑️ Сбросить</button>
@@ -504,8 +542,17 @@ function editorBuildPanel() {
         if (EDITOR_STORE.promos) editorSaveJSON('promos', EDITOR_STORE.promos);
         if (EDITOR_STORE.services) editorSaveJSON('services', EDITOR_STORE.services);
         if (EDITOR_STORE.portfolio) editorSaveJSON('portfolio', EDITOR_STORE.portfolio);
-        editorToast('Всё сохранено ✓');
+        if (EDITOR_STORE.links && Object.keys(EDITOR_STORE.links).length) editorSaveJSON('links', EDITOR_STORE.links);
+        if (editorSyncUrl()) {
+            clearTimeout(editorSyncTimer);
+            editorSyncPush().then(ok => {
+                editorToast(ok ? 'Всё сохранено и опубликовано на сервере ✓' : 'Сохранено локально (сервер недоступен).');
+            });
+        } else {
+            editorToast('Всё сохранено ✓');
+        }
     });
+    panel.querySelector('[data-ed-history]').addEventListener('click', openHistoryModal);
     panel.querySelector('[data-ed-export]').addEventListener('click', editorExportData);
     panel.querySelector('[data-ed-import]').addEventListener('click', () => importFile.click());
     importFile.addEventListener('change', () => {
@@ -575,12 +622,70 @@ function openImageListModal() {
     void root;
 }
 
+function openHistoryModal() {
+    if (!editorSyncUrl()) {
+        editorToast('История версий доступна только на сервере (content-sync.php).', true);
+        return;
+    }
+    editorToast('Загружаю историю версий…');
+    editorSyncVersions().then(list => {
+        if (!list || !Array.isArray(list.versions)) {
+            editorToast('Не удалось получить историю версий.', true);
+            return;
+        }
+        const versions = list.versions;
+        const max = Number(list.max) || 0;
+        const rows = versions.map(v => `
+            <div class="ed-item ed-item--row">
+                <span class="ed-item__id">${editorEscapeHtml(v.time)}</span>
+                <span class="ed-item__preview">${editorEscapeHtml(v.id)}</span>
+                <button type="button" class="ed-btn ed-btn--restore" data-ed-restore="${editorEscapeHtml(v.id)}" data-ed-time="${editorEscapeHtml(v.time)}">↩️ Откатить</button>
+            </div>`).join('') || '<div class="ed-empty">Версий пока нет — они появятся при первом сохранении правок.</div>';
+
+        const root = editorOpenModal(`История версий <span class="ed-modal__count">${versions.length}</span>`, `
+            <div class="ed-list">${rows}</div>
+            <div class="ed-note">Снапшот создаётся при каждом сохранении на сервере${max ? ` (хранятся последние ${max})` : ''}. Перед откатом текущее состояние тоже сохранится как версия — откат всегда можно отменить. Скачивайте «📤 Экспорт» для полного бэкапа на компьютер.</div>`, rootEl => {
+            rootEl.querySelectorAll('[data-ed-restore]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.dataset.edRestore;
+                    const time = btn.dataset.edTime;
+                    if (!confirm('Откатить сайт к версии от ' + time + '?\nТекущее состояние сохранится как отдельная версия.')) return;
+                    btn.disabled = true;
+                    editorSyncRestore(id).then(ok => {
+                        if (!ok) {
+                            editorToast('Не удалось восстановить версию.', true);
+                            btn.disabled = false;
+                            return;
+                        }
+                        editorSyncPull().then(server => {
+                            if (server) editorApplyServerData(server);
+                            closeEditorModal();
+                            editorToast('Версия от ' + time + ' восстановлена ✓');
+                        });
+                    });
+                });
+            });
+        });
+        void root;
+    });
+}
+
 /* --- Активация ----------------------------------------------------------- */
+
+function editorApplyPanelOffset() {
+    const panel = document.getElementById('editor-panel');
+    if (!panel) return;
+    const h = Math.ceil(panel.getBoundingClientRect().height);
+    document.body.style.setProperty('--ed-panel-h', h + 'px');
+}
 
 function activateEditor() {
     EDITOR_ACTIVE = true;
     document.body.classList.add('editor-active');
     editorBuildPanel();
+    editorApplyPanelOffset();
+    window.addEventListener('resize', editorApplyPanelOffset);
+    window.addEventListener('load', editorApplyPanelOffset);
 
     document.addEventListener('click', e => {
         if (!EDITOR_ACTIVE) return;
@@ -679,6 +784,9 @@ function editorRerenderSection(kind) {
             editorRefreshServicePicker();
         } else if (kind === 'portfolio') {
             if (document.getElementById('gallery')) renderGallery();
+        } else if (kind === 'links') {
+            if (document.getElementById('footer')) renderFooter();
+            renderContacts();
         }
     } catch (e) {
         console.warn('[editor] пере-рендер секции', kind, e);
@@ -710,4 +818,7 @@ document.addEventListener('DOMContentLoaded', () => {
         editorScan();
         activateEditor();
     }
+    editorSyncPull().then(server => {
+        if (server) editorApplyServerData(server);
+    });
 });

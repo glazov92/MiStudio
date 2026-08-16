@@ -10,10 +10,13 @@ function masterRowHtml(m, idx) {
     m = m || {};
     return `
         <div class="ed-master-row" data-ed-master>
+            <div class="ed-price-sec__head ed-price-sec__head--tag">
+                <span class="ed-tag">Мастер</span>
+                <button type="button" class="ed-mini ed-mini--danger" data-ed-master-del title="Удалить мастера">✕</button>
+            </div>
             <input class="ed-input" data-f="name" placeholder="Имя мастера" value="${editorEscapeHtml(m.name || '')}" ${idx === 0 ? 'autofocus' : ''}>
             <input class="ed-input" data-f="photo" placeholder="Фото (URL)" value="${editorEscapeHtml(m.photo || '')}">
             <input class="ed-input" data-f="desc" placeholder="Кто мастер, опыт, образование" value="${editorEscapeHtml(m.desc || '')}">
-            <button type="button" class="ed-mini ed-mini--danger" data-ed-master-del title="Удалить мастера">✕</button>
         </div>`;
 }
 
@@ -21,10 +24,15 @@ function priceItemRowHtml(it) {
     it = it || {};
     return `
         <div class="ed-price-item" data-ed-price-item>
-            <input class="ed-input" data-f="name" placeholder="Название процедуры" value="${editorEscapeHtml(it.name || '')}">
-            <input class="ed-input" data-f="meta" placeholder="Примечание (длительность)" value="${editorEscapeHtml(it.meta || '')}">
-            <input class="ed-input ed-price-item__price" data-f="price" placeholder="Цена" value="${editorEscapeHtml(it.price || '')}">
-            <button type="button" class="ed-mini ed-mini--danger" data-ed-price-item-del title="Удалить позицию">✕</button>
+            <div class="ed-price-sec__head ed-price-sec__head--tag">
+                <span class="ed-tag ed-tag--item">Позиция</span>
+                <button type="button" class="ed-mini ed-mini--danger" data-ed-price-item-del title="Удалить позицию">✕</button>
+            </div>
+            <div class="ed-price-item__row">
+                <input class="ed-input" data-f="name" placeholder="Название процедуры" value="${editorEscapeHtml(it.name || '')}">
+                <input class="ed-input" data-f="meta" placeholder="Примечание (длительность)" value="${editorEscapeHtml(it.meta || '')}">
+                <input class="ed-input ed-price-item__price" data-f="price" placeholder="Цена" value="${editorEscapeHtml(it.price || '')}">
+            </div>
         </div>`;
 }
 
@@ -33,10 +41,11 @@ function priceSectionHtml(block) {
     const items = (Array.isArray(block.items) && block.items.length ? block.items : [{}]).map(priceItemRowHtml).join('');
     return `
         <div class="ed-price-sec" data-ed-price-sec>
-            <div class="ed-price-sec__head">
-                <input class="ed-input" data-f="section" placeholder="Название раздела (категория прайса)" value="${editorEscapeHtml(block.section || '')}">
+            <div class="ed-price-sec__head ed-price-sec__head--tag">
+                <span class="ed-tag">Раздел прайса</span>
                 <button type="button" class="ed-mini ed-mini--danger" data-ed-price-sec-del title="Удалить раздел">✕</button>
             </div>
+            <input class="ed-input" data-f="section" placeholder="Название раздела, например «Эстетическая косметология»" value="${editorEscapeHtml(block.section || '')}">
             <div class="ed-price-items" data-ed-price-items>${items}</div>
             <button type="button" class="ed-btn ed-btn--sm" data-ed-price-add-item>+ Позиция</button>
         </div>`;

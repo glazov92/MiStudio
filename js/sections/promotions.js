@@ -164,6 +164,6 @@ function openPromotionsManager() {
 }
 
 window.EDITOR_SECTIONS = window.EDITOR_SECTIONS || {};
-window.EDITOR_SECTIONS.promotions = { open: openPromotionsManager };
+window.EDITOR_SECTIONS.promotions = { open: openPromotionsManager, openForm: openPromoForm };
 
 })();

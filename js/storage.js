@@ -9,7 +9,8 @@ const EDITOR_KEYS = {
     paths: 'service_paths',
     promos: 'promotions',
     services: 'services',
-    portfolio: 'portfolio'
+    portfolio: 'portfolio',
+    links: 'links'
 };
 
 function editorStorageKey(short) {
@@ -31,6 +32,7 @@ function editorLoadJSON(short, fallback) {
 function editorSaveJSON(short, value) {
     try {
         localStorage.setItem(editorStorageKey(short), JSON.stringify(value));
+        editorScheduleSync();
         return true;
     } catch (e) {
         editorToast('Хранилище переполнено — изображение слишком большое. Сожмите его или удалите неиспользуемые.', true);
@@ -50,6 +52,84 @@ function editorStorageSupported() {
     }
 }
 
+/* --- Серверная синхронизация правок (PHP content-sync.php на хостинге) -- */
+
+function editorSyncUrl() {
+    const c = EDITOR_CONFIG.serverSync;
+    if (!c || !c.enabled || !c.url) return null;
+    return c.url;
+}
+
+function editorSyncPayload() {
+    return {
+        key: (EDITOR_CONFIG.serverSync && EDITOR_CONFIG.serverSync.key) || '',
+        data: {
+            editable_texts: EDITOR_STORE.texts || {},
+            editable_images: EDITOR_STORE.images || {},
+            service_paths: EDITOR_STORE.paths || {},
+            promotions: EDITOR_STORE.promos || [],
+            services: EDITOR_STORE.services || [],
+            portfolio: EDITOR_STORE.portfolio || [],
+            links: EDITOR_STORE.links || {}
+        }
+    };
+}
+
+/* Получить правки с сервера. Возвращает Promise<object|null>. */
+function editorSyncPull() {
+    const url = editorSyncUrl();
+    if (!url) return Promise.resolve(null);
+    return fetch(url, { method: 'GET', cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null);
+}
+
+/* Отправить полный снимок правок на сервер. Возвращает Promise<boolean>. */
+function editorSyncPush() {
+    const url = editorSyncUrl();
+    if (!url) return Promise.resolve(false);
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editorSyncPayload())
+    }).then(r => (r.ok ? true : false)).catch(() => false);
+}
+
+/* Список версий правок с сервера. Возвращает Promise<object|null>
+   ({ ok, versions:[{id,time}], max } либо null при недоступности). */
+function editorSyncVersions() {
+    const base = editorSyncUrl();
+    if (!base) return Promise.resolve(null);
+    const c = EDITOR_CONFIG.serverSync;
+    const url = base + (base.indexOf('?') >= 0 ? '&' : '?') +
+        'action=versions&key=' + encodeURIComponent((c && c.key) || '');
+    return fetch(url, { method: 'GET', cache: 'no-store' })
+        .then(r => (r.ok ? r.json() : null))
+        .catch(() => null);
+}
+
+/* Откатить правки к версии. Возвращает Promise<boolean>. */
+function editorSyncRestore(version) {
+    const url = editorSyncUrl();
+    if (!url) return Promise.resolve(false);
+    return fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            action: 'restore',
+            key: (EDITOR_CONFIG.serverSync && EDITOR_CONFIG.serverSync.key) || '',
+            version: version
+        })
+    }).then(r => (r.ok ? true : false)).catch(() => false);
+}
+
+let editorSyncTimer = null;
+function editorScheduleSync() {
+    if (!editorSyncUrl()) return;
+    clearTimeout(editorSyncTimer);
+    editorSyncTimer = setTimeout(() => editorSyncPush(), 800);
+}
+
 /* Хранилище-состояние: всегда загружается при загрузке страницы,
    чтобы даже без режима редактирования правки применялись к рендеру.
    main.js читает его через геттеры getPromos()/getServices()/getPortfolioItems(). */
@@ -59,7 +139,8 @@ const EDITOR_STORE = {
     paths: {},
     promos: null,
     services: null,
-    portfolio: null
+    portfolio: null,
+    links: null
 };
 
 window.MiEditorData = EDITOR_STORE;
@@ -74,6 +155,7 @@ function editorExportData() {
         promotions: EDITOR_STORE.promos || [],
         services: EDITOR_STORE.services || [],
         portfolio: EDITOR_STORE.portfolio || [],
+        links: EDITOR_STORE.links || {},
         exported_at: new Date().toISOString()
     };
 
@@ -101,6 +183,7 @@ function editorImportData(file) {
             const promos = Array.isArray(data.promotions) ? data.promotions : null;
             const services = Array.isArray(data.services) ? data.services : null;
             const portfolio = Array.isArray(data.portfolio) ? data.portfolio : null;
+            const links = data.links && typeof data.links === 'object' ? data.links : null;
 
             editorSaveJSON('texts', texts);
             editorSaveJSON('images', images);
@@ -108,6 +191,7 @@ function editorImportData(file) {
             if (promos) editorSaveJSON('promos', promos);
             if (services) editorSaveJSON('services', services);
             if (portfolio) editorSaveJSON('portfolio', portfolio);
+            if (links && Object.keys(links).length) editorSaveJSON('links', links);
 
             EDITOR_STORE.texts = texts;
             EDITOR_STORE.images = images;
@@ -115,6 +199,7 @@ function editorImportData(file) {
             EDITOR_STORE.promos = promos;
             EDITOR_STORE.services = services;
             EDITOR_STORE.portfolio = portfolio;
+            EDITOR_STORE.links = links;
 
             editorToast('Импорт прошёл успешно. Страница обновляется...');
             setTimeout(() => location.reload(), 600);
@@ -128,11 +213,23 @@ function editorImportData(file) {
 }
 
 function editorResetAll() {
-    if (!confirm('Сбросить ВСЕ изменения (тексты, изображения, услуги, акции, портфолио)? Действие необратимо.')) return;
+    if (!confirm('Сбросить ВСЕ изменения (тексты, изображения, услуги, акции, портфолио)? Действие необратимо и удалит правки и на сервере.')) return;
     Object.keys(EDITOR_KEYS).forEach(k => {
         try { localStorage.removeItem(editorStorageKey(k)); } catch (_) { /* ignore */ }
     });
-    location.reload();
+    const done = () => location.reload();
+    if (editorSyncUrl()) {
+        EDITOR_STORE.texts = {};
+        EDITOR_STORE.images = {};
+        EDITOR_STORE.paths = {};
+        EDITOR_STORE.promos = null;
+        EDITOR_STORE.services = null;
+        EDITOR_STORE.portfolio = null;
+        EDITOR_STORE.links = null;
+        editorSyncPush().then(done, done);
+    } else {
+        done();
+    }
 }
 
 /* --- Тосты -------------------------------------------------------------- */

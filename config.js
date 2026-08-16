@@ -20,10 +20,15 @@ const CONFIG = {
 // Ключ — затычка, задать настоящий позже. Хранится на клиенте: это НЕ защита,
 // а просто "дверь с защёлкой" (см. ТЗ, раздел 8.3).
 const EDITOR_CONFIG = {
-    secretKey: '123',
+    secretKey: 'sLQSSJCRpwRrsdYSNhQR',
     maxImageSize: 3 * 1024 * 1024,   // 3 МБ на файл
     maxImageEdge: 1600,              // автожатие: длинная сторона не больше 1600px (JPEG 0.82)
     storagePrefix: 'mistudio_editor_',
+    serverSync: {
+        enabled: true,               // сохранять правки на сервере (PHP, см. content-sync.php)
+        url: 'content-sync.php',     // относительный путь к скрипту на хостинге
+        key: 'xlfQKw6pD1h1cHwfaVwaxaCq'     // ключ записи — совпадает с CMS_KEY в content-sync.php
+    },
     sections: {
         promotions: { label: 'Акции', icon: '🎯', selector: '#promos, .promos__hint', render: 'promos' },
         services:   { label: 'Услуги', icon: '🔧', selector: '#services, #services-list', render: 'services' },
