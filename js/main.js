@@ -38,6 +38,8 @@ const spamGuard = {
     lastSentMs: 0
 };
 
+let leadSending = false;
+
 function getSessionLeadCount() {
     const n = parseInt(sessionStorage.getItem('mi_lead_count') || '0', 10);
     return Number.isFinite(n) ? n : 0;
@@ -297,19 +299,13 @@ function renderPopup() {
 
                     <div class="form__field">
                         <span class="form__label">Услуги <span class="form__req">*</span></span>
-                        <div class="msel" id="lead-services">
-                            <div class="msel__badges" id="msel-badges"></div>
-                            <button type="button" class="msel__trigger form__input" id="msel-trigger" aria-haspopup="listbox" aria-expanded="false">
-                                <span id="msel-placeholder">Выберите услуги</span>
-                                <span class="msel__caret" aria-hidden="true"></span>
-                            </button>
-                            <div class="msel__dropdown" id="msel-dropdown" hidden role="listbox">
-                                <div class="msel__scroll">
-                                    ${serviceItems}
-                                </div>
-                                <button type="button" class="btn btn--accent btn--block msel__done" id="msel-done">Добавить</button>
+                            <div class="msel" id="lead-services">
+                                <div class="msel__badges" id="msel-badges"></div>
+                                <button type="button" class="msel__trigger form__input" id="msel-trigger" aria-haspopup="dialog" aria-expanded="false">
+                                    <span id="msel-placeholder">Выберите услуги</span>
+                                    <span class="msel__caret" aria-hidden="true"></span>
+                                </button>
                             </div>
-                        </div>
                     </div>
 
                     <div class="form__field">
@@ -361,6 +357,19 @@ function renderPopup() {
                     <div class="dtp__days" id="dtp-days"></div>
                 </div>
                 <button type="button" class="btn btn--accent btn--block" data-close-calendar style="margin-top:14px">Готово</button>
+            </div>
+        </div>
+
+        <div class="popup popup--calendar" id="service-picker-popup">
+            <div class="popup__overlay" data-close-service-picker></div>
+            <div class="popup__container popup__container--calendar">
+                <button class="popup__close" data-close-service-picker aria-label="Закрыть">&times;</button>
+                <div class="popup__title">Услуги</div>
+                <p class="popup__subtitle">Можно выбрать несколько услуг</p>
+                <div class="msel__scroll msel__scroll--picker">
+                    ${serviceItems}
+                </div>
+                <button type="button" class="btn btn--accent btn--block" data-close-service-picker style="margin-top:14px">Добавить</button>
             </div>
         </div>
 
@@ -480,6 +489,7 @@ function bindPopup() {
 
         const openBtn = e.target.closest('[data-open-popup]');
         if (openBtn) {
+            closeMsel();
             closeCalendarPopup();
             closePopup();
             const promo = openBtn.dataset.promo;
@@ -497,7 +507,12 @@ function bindPopup() {
             closeCalendarPopup();
             return;
         }
+        if (e.target.closest('[data-close-service-picker]')) {
+            closeMsel();
+            return;
+        }
         if (e.target.closest('[data-close-popup]')) {
+            closeMsel();
             closeCalendarPopup();
             closePopup();
         }
@@ -510,6 +525,11 @@ function bindPopup() {
         const calendar = document.getElementById('calendar-popup');
         if (calendar?.classList.contains('is-open')) {
             closeCalendarPopup();
+            return;
+        }
+        const picker = document.getElementById('service-picker-popup');
+        if (picker?.classList.contains('is-open')) {
+            closeMsel();
             return;
         }
         closePopup();
@@ -729,7 +749,7 @@ function renderServiceBadges() {
     placeholder.textContent = leadFormState.services.length
         ? `Выбрано: ${leadFormState.services.length}`
         : 'Выберите услуги';
-    document.querySelectorAll('#msel-dropdown input[type="checkbox"]').forEach(cb => {
+    document.querySelectorAll('#service-picker-popup input[type="checkbox"]').forEach(cb => {
         cb.checked = leadFormState.services.includes(cb.value);
     });
 }
@@ -785,22 +805,31 @@ function selectLeadPromo(title) {
     toggleLeadPromo(title, true);
 }
 
+function renderServicePicker() {
+    document.querySelectorAll('#service-picker-popup input[type="checkbox"]').forEach(cb => {
+        cb.checked = leadFormState.services.includes(cb.value);
+    });
+}
+
 function openMsel() {
-    const dd = document.getElementById('msel-dropdown');
+    const picker = document.getElementById('service-picker-popup');
     const trigger = document.getElementById('msel-trigger');
-    if (!dd || !trigger) return;
-    dd.hidden = false;
-    trigger.setAttribute('aria-expanded', 'true');
-    trigger.classList.add('is-open');
+    if (!picker) return;
+    closeCalendarPopup();
+    closePhoneCountryDd();
+    renderServicePicker();
+    picker.classList.add('is-open');
+    trigger?.setAttribute('aria-expanded', 'true');
+    trigger?.classList.add('is-open');
 }
 
 function closeMsel() {
-    const dd = document.getElementById('msel-dropdown');
+    const picker = document.getElementById('service-picker-popup');
     const trigger = document.getElementById('msel-trigger');
-    if (!dd || !trigger) return;
-    dd.hidden = true;
-    trigger.setAttribute('aria-expanded', 'false');
-    trigger.classList.remove('is-open');
+    if (!picker) return;
+    picker.classList.remove('is-open');
+    trigger?.setAttribute('aria-expanded', 'false');
+    trigger?.classList.remove('is-open');
 }
 
 function pad2(n) {
@@ -961,17 +990,12 @@ function initLeadForm() {
 
     document.getElementById('msel-trigger')?.addEventListener('click', e => {
         e.stopPropagation();
-        const dd = document.getElementById('msel-dropdown');
-        if (dd?.hidden) openMsel();
-        else closeMsel();
+        const picker = document.getElementById('service-picker-popup');
+        if (picker?.classList.contains('is-open')) closeMsel();
+        else openMsel();
     });
 
-    document.getElementById('msel-done')?.addEventListener('click', e => {
-        e.stopPropagation();
-        closeMsel();
-    });
-
-    document.getElementById('msel-dropdown')?.addEventListener('change', e => {
+    document.getElementById('service-picker-popup')?.addEventListener('change', e => {
         const cb = e.target.closest('input[type="checkbox"]');
         if (!cb) return;
         toggleLeadService(cb.value, cb.checked);
@@ -1033,7 +1057,6 @@ function initLeadForm() {
 
     document.addEventListener('click', e => {
         if (!e.target.closest('.phone-country')) closePhoneCountryDd();
-        if (!e.target.closest('.msel')) closeMsel();
     });
 }
 
@@ -1090,6 +1113,9 @@ function onLeadSubmit(e) {
     e.preventDefault();
     const form = e.target;
     const status = document.getElementById('lead-status');
+    const submitBtn = form.querySelector('button[type="submit"]');
+
+    if (leadSending) return;
 
     const hp = document.getElementById('lead-hp');
     if (hp && hp.value.trim() !== '') {
@@ -1178,7 +1204,12 @@ function onLeadSubmit(e) {
     status.className = 'form__status is-show form__status--ok';
     status.textContent = 'Отправляем...';
 
+    leadSending = true;
+    if (submitBtn) submitBtn.disabled = true;
+
     submitLead(data).then(res => {
+        leadSending = false;
+        if (submitBtn) submitBtn.disabled = false;
         if (res.ok) {
             spamGuard.lastSentMs = Date.now();
             bumpSessionLeadCount();

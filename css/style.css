@@ -3364,26 +3364,13 @@ body.nav-open {
     box-shadow: 0 0 0 3px rgba(184, 151, 90, 0.15);
 }
 
-.msel__dropdown {
-    position: absolute;
-    top: calc(100% + 6px);
-    left: 0;
-    right: 0;
-    z-index: 30;
-    background: var(--white);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow-hover);
-    padding: 6px;
-}
-
 .msel__scroll {
     max-height: 240px;
     overflow-y: auto;
 }
 
-.msel__done {
-    margin-top: 8px;
+.msel__scroll--picker {
+    max-height: 300px;
 }
 
 .msel__option {
@@ -3483,10 +3470,6 @@ body.nav-open {
 .dtp__icon {
     color: var(--muted);
     display: inline-flex;
-}
-
-.msel__dropdown[hidden] {
-    display: none !important;
 }
 
 .dtp-mini .dtp__nav {
