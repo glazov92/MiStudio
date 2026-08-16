@@ -33,7 +33,7 @@ function openPortfolioForm(existing) {
                 editorToast('Укажите URL изображения.', true);
                 return;
             }
-            const list = Array.isArray(EDITOR_STORE.portfolio) ? EDITOR_STORE.portfolio.slice() : [];
+            const list = editorPortfolioList();
             const base = {
                 title: data.title || '',
                 desc: data.desc || '',
@@ -59,8 +59,12 @@ function openPortfolioForm(existing) {
     void root;
 }
 
+function editorPortfolioList() {
+    return Array.isArray(EDITOR_STORE.portfolio) ? EDITOR_STORE.portfolio.slice() : getPortfolioItems().slice();
+}
+
 function openPortfolioManager() {
-    const list = Array.isArray(EDITOR_STORE.portfolio) ? EDITOR_STORE.portfolio : [];
+    const list = editorPortfolioList();
 
     function renderList(rootEl) {
         const listEl = rootEl.querySelector('[data-ed-list]');

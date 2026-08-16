@@ -101,6 +101,14 @@ function editorScan() {
         if (el.dataset.editorOrig == null) el.dataset.editorOrig = el.getAttribute('src') || '';
         EDITOR_ELEMENTS.images.push({ id, el });
     });
+    document.querySelectorAll('[data-editor-img]').forEach(el => {
+        const id = el.dataset.editorImg;
+        if (!id) return;
+        if (el.dataset.editorOrig == null) el.dataset.editorOrig = el.getAttribute('src') || '';
+        if (!EDITOR_ELEMENTS.images.some(t => t.id === id)) {
+            EDITOR_ELEMENTS.images.push({ id, el, dynamic: true });
+        }
+    });
 }
 
 function editorFindTextEl(id) {
@@ -161,9 +169,9 @@ function openTextEditor(entry) {
 /* --- Замена изображений (Функция Б) ------------------------------------- */
 
 function openImageEditor(entry) {
-    const el = entry.el;
+    const el = entry.el || null;
     const id = entry.id;
-    const current = el.src;
+    const current = el ? el.src : (entry.src || '');
 
     const root = editorOpenModal(`Заменить изображение <span class="ed-modal__id">${id}</span>`, `
         <div class="ed-imgpreview"><img src="${current}" alt="Текущее изображение"></div>
@@ -187,9 +195,12 @@ function openImageEditor(entry) {
 
         const apply = src => {
             if (!src) return;
-            el.src = src;
+            if (el) el.src = src;
             EDITOR_STORE.images[id] = src;
+            editorApplyImageToDom(id, src);
             editorSaveJSON('images', EDITOR_STORE.images);
+            const section = editorSectionForImageId(id);
+            if (section) editorRerenderSection(section);
             editorToast('Изображение обновлено.');
         };
 
@@ -224,15 +235,91 @@ function openImageEditor(entry) {
 
         rootEl.querySelector('[data-ed-reset]').addEventListener('click', () => {
             delete EDITOR_STORE.images[id];
-            el.src = el.dataset.editorOrig || '';
             editorSaveJSON('images', EDITOR_STORE.images);
             closeEditorModal();
+            if (el) {
+                const orig = el.dataset.editorOrig || '';
+                el.src = orig;
+                editorApplyImageToDom(id, orig);
+            }
+            const section = editorSectionForImageId(id);
+            if (section) editorRerenderSection(section);
             editorToast('Изображение сброшено к оригиналу.');
         });
 
         rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
     });
     void root;
+}
+
+function editorApplyImageToDom(id, src) {
+    document.querySelectorAll('[data-editable="image"], [data-editor-img]').forEach(el => {
+        if ((el.dataset.editableId === id) || (el.dataset.editorImg === id)) el.src = src;
+    });
+}
+
+function editorSectionForImageId(id) {
+    if (id && id.indexOf('svc_') === 0) return 'services';
+    if (id && id.indexOf('gallery_') === 0) return 'portfolio';
+    return null;
+}
+
+function editorImageLabel(id) {
+    const staticMap = {
+        hero_img_back: 'Главный экран · задний план',
+        hero_img_mid: 'Главный экран · центральное фото',
+        hero_img_front: 'Главный экран · передний план',
+        about_image: 'О нас · фото'
+    };
+    if (staticMap[id]) return staticMap[id];
+    if (id.indexOf('svc_') === 0) {
+        const list = getServices();
+        let match = null;
+        let isMaster = id.indexOf('_master_') !== -1;
+        list.some(s => {
+            if (Array.isArray(s.images)) {
+                for (let i = 0; i < s.images.length; i++) {
+                    if (svcImageKey(s.id, i) === id) { match = { s, i }; return true; }
+                }
+            }
+            if (Array.isArray(s.masters)) {
+                for (let k = 0; k < s.masters.length; k++) {
+                    if (svcMasterKey(s.id, k) === id) { match = { s, k }; return true; }
+                }
+            }
+            return false;
+        });
+        if (match) {
+            if (isMaster) {
+                const m = (match.s.masters || [])[match.k];
+                return match.s.title + ' · мастер' + (m && m.name ? ' (' + m.name.split(' ')[0] + ')' : '');
+            }
+            return match.s.title + ' · фото ' + (match.i + 1);
+        }
+    }
+    if (id.indexOf('gallery_') === 0) return 'Портфолио · фото';
+    return id;
+}
+
+function editorImageRegistry() {
+    const items = [];
+    const seen = {};
+    const push = (id, src, el) => {
+        if (!id || seen[id]) return;
+        seen[id] = true;
+        items.push({ id, src: src || '', el, label: editorImageLabel(id) });
+    };
+    document.querySelectorAll('[data-editable="image"], [data-editor-img]').forEach(el => {
+        push(el.dataset.editableId || el.dataset.editorImg, el.getAttribute('src') || '', el);
+    });
+    getServices().forEach(s => {
+        if (Array.isArray(s.images)) s.images.forEach((src, i) => push(svcImageKey(s.id, i), src));
+        (Array.isArray(s.masters) ? s.masters : []).forEach((m, k) => {
+            if (m.photo) push(svcMasterKey(s.id, k), m.photo);
+        });
+    });
+    getPortfolioItems().forEach((it, i) => push(galleryImageKey(it.id), it.image || ''));
+    return items;
 }
 
 function editorDownscaleImage(file, callback) {
@@ -356,18 +443,21 @@ function openTextListModal() {
 }
 
 function openImageListModal() {
-    const rows = EDITOR_ELEMENTS.images.map(t => `
+    editorScan();
+    const all = editorImageRegistry();
+    const rows = all.map(t => `
         <button type="button" class="ed-item" data-ed-id="${t.id}" data-ed-kind="image">
-            <img class="ed-item__thumb" src="${editorEscapeHtml(t.el.src)}" alt="">
+            <img class="ed-item__thumb" src="${editorEscapeHtml(t.src)}" alt="">
             <span class="ed-item__id">${t.id}</span>
+            <span class="ed-item__sub">${editorEscapeHtml(t.label)}</span>
         </button>`).join('') || '<div class="ed-empty">На этой странице нет изображений</div>';
 
-    const root = editorOpenModal('Все изображения', `
+    const root = editorOpenModal(`Все изображения <span class="ed-modal__count">${all.length}</span>`, `
         <div class="ed-list">${rows}</div>
-        <div class="ed-note">Нажмите на элемент — откроется замена. Или кликните прямо по изображению на странице.</div>`, rootEl => {
+        <div class="ed-note">Нажмите на элемент — откроется замена. Или кликните прямо по изображению на странице (включая попапы и галерею).</div>`, rootEl => {
         rootEl.querySelectorAll('[data-ed-id]').forEach(btn => {
             btn.addEventListener('click', () => {
-                const entry = editorFindImageEl(btn.dataset.edId);
+                const entry = all.find(t => t.id === btn.dataset.edId);
                 if (entry) openImageEditor(entry);
             });
         });
@@ -400,6 +490,13 @@ function activateEditor() {
             const id = imgEl.dataset.editableId;
             const entry = editorFindImageEl(id);
             if (entry) openImageEditor(entry);
+            return;
+        }
+        const dynImg = e.target.closest('[data-editor-img]');
+        if (dynImg) {
+            e.preventDefault();
+            e.stopPropagation();
+            openImageEditor({ id: dynImg.dataset.editorImg, el: dynImg });
             return;
         }
     }, true);

@@ -46,13 +46,38 @@ function getPromos() {
     return (window.MiEditorData && window.MiEditorData.promos) || PROMOS;
 }
 
+/* Стабильные ключи оверрайдов изображений (общие для рендера и редактора) */
+function svcImageKey(id, i) { return 'svc_' + id + '_img_' + i; }
+function svcMasterKey(id, k) { return 'svc_' + id + '_master_' + k; }
+function galleryImageKey(id) { return 'gallery_' + id; }
+
 function getServices() {
-    return (window.MiEditorData && window.MiEditorData.services) || SERVICES;
+    const src = (window.MiEditorData && window.MiEditorData.services) || SERVICES;
+    const imgs = (window.MiEditorData && window.MiEditorData.images) || {};
+    return src.map(s => {
+        const copy = Object.assign({}, s);
+        if (Array.isArray(copy.images)) {
+            copy.images = copy.images.map((srcImg, i) => imgs[svcImageKey(copy.id, i)] || srcImg);
+        }
+        if (Array.isArray(copy.masters)) {
+            copy.masters = copy.masters.map((m, k) => {
+                if (!m.photo) return m;
+                const over = imgs[svcMasterKey(copy.id, k)];
+                return over ? Object.assign({}, m, { photo: over }) : m;
+            });
+        }
+        return copy;
+    });
 }
 
 function getPortfolioItems() {
     const list = (window.MiEditorData && window.MiEditorData.portfolio) || PORTFOLIO_IMAGES;
-    return list.map((it, i) => (typeof it === 'string' ? { id: 'pf_' + i, image: it } : it));
+    const imgs = (window.MiEditorData && window.MiEditorData.images) || {};
+    return list.map((it, i) => {
+        const item = typeof it === 'string' ? { id: 'p' + i, image: it } : it;
+        const over = imgs[galleryImageKey(item.id)];
+        return over ? Object.assign({}, item, { image: over }) : item;
+    });
 }
 
 function getSessionLeadCount() {
@@ -1321,8 +1346,8 @@ function initCarousel(root) {
 
 function renderServiceCard(service) {
     const images = Array.isArray(service.images) ? service.images : [];
-    const slides = images.map(src =>
-        `<div class="carousel__slide"><img src="${src}" alt="${service.title}" loading="lazy"></div>`).join('');
+    const slides = images.map((src, i) =>
+        `<div class="carousel__slide"><img src="${src}" alt="${service.title}" loading="lazy" data-editor-img="${svcImageKey(service.id, i)}"></div>`).join('');
 
     const masters = Array.isArray(service.masters) ? service.masters.map(m =>
         `<div class="master-pill"><strong>${m.name}</strong><span>${m.desc}</span></div>`).join('') : '';
@@ -1535,7 +1560,7 @@ function renderServicePreviews() {
             <div class="card-3d__face">
                 <div class="card-3d__shine" aria-hidden="true"></div>
                 <div class="service-card__media">
-                    <img src="${(s.images && s.images[0]) || ''}" alt="${s.title}" loading="lazy" draggable="false">
+                    <img src="${(s.images && s.images[0]) || ''}" alt="${s.title}" loading="lazy" draggable="false" data-editor-img="${svcImageKey(s.id, 0)}">
                 </div>
                 <div class="service-card__body">
                     <div class="service-card__title">${s.title}</div>
@@ -1575,10 +1600,10 @@ function masterInitials(fullName) {
 }
 
 function renderServicePopupBody(service) {
-    const masters = (Array.isArray(service.masters) ? service.masters : []).map(m => {
+    const masters = (Array.isArray(service.masters) ? service.masters : []).map((m, k) => {
         const { surname, given } = splitMasterName(m.name);
         const photo = m.photo
-            ? `<img class="master-card__img" src="${m.photo}" alt="${m.name}" loading="lazy">`
+            ? `<img class="master-card__img" src="${m.photo}" alt="${m.name}" loading="lazy" data-editor-img="${svcMasterKey(service.id, k)}">`
             : `<span class="master-card__initials">${masterInitials(m.name)}</span>`;
 
         return `
@@ -1828,7 +1853,7 @@ function renderGallery() {
         <div class="gallery-item card-3d-host" data-index="${i}">
             <div class="card-3d__face">
                 <div class="card-3d__shine" aria-hidden="true"></div>
-                <img src="${item.image || ''}" alt="${item.title || 'Работа ' + (i + 1)}" loading="lazy" draggable="false">
+                <img src="${item.image || ''}" alt="${item.title || 'Работа ' + (i + 1)}" loading="lazy" draggable="false" data-editor-img="${galleryImageKey(item.id)}">
                 ${item.title ? `<span class="gallery-item__caption">${item.title}</span>` : ''}
             </div>
         </div>`).join('');

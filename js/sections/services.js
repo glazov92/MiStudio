@@ -50,9 +50,25 @@ function openServiceForm(existing) {
                 editorToast('Укажите название услуги.', true);
                 return;
             }
-            const images = data.image ? [data.image] : [];
-            const masters = parseMasters(data.masters);
-            const list = Array.isArray(EDITOR_STORE.services) ? EDITOR_STORE.services.slice() : [];
+            const images0 = data.image ? [data.image] : [];
+            const list = editorServiceList();
+            const existing = isNew ? null : (list.find(x => x.id === service.id) || service);
+            const prevMasters = (existing && Array.isArray(existing.masters)) ? existing.masters : [];
+            const prevImages = (existing && Array.isArray(existing.images)) ? existing.images : [];
+
+            let masters = parseMasters(data.masters);
+            if (!masters.length && prevMasters.length) {
+                masters = prevMasters;
+            } else {
+                masters = masters.map(m => {
+                    const prev = prevMasters.find(p => p.name === m.name);
+                    return prev ? Object.assign({}, m, { photo: prev.photo }) : m;
+                });
+            }
+
+            const images = images0.length
+                ? images0.concat(prevImages.slice(1))
+                : prevImages;
 
             const base = {
                 title: data.title,
@@ -86,8 +102,12 @@ function openServiceForm(existing) {
     void root;
 }
 
+function editorServiceList() {
+    return Array.isArray(EDITOR_STORE.services) ? EDITOR_STORE.services.slice() : getServices().slice();
+}
+
 function openServicesManager() {
-    const list = Array.isArray(EDITOR_STORE.services) ? EDITOR_STORE.services : [];
+    const list = editorServiceList();
 
     function renderList(rootEl) {
         const listEl = rootEl.querySelector('[data-ed-list]');

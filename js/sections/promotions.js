@@ -39,7 +39,7 @@ function openPromoForm(existing) {
                 editorToast('Укажите заголовок акции.', true);
                 return;
             }
-            const list = Array.isArray(EDITOR_STORE.promos) ? EDITOR_STORE.promos.slice() : [];
+            const list = editorPromoList();
             if (isNew) {
                 list.push(Object.assign({
                     id: editorGenerateId('promo'),
@@ -69,8 +69,13 @@ function openPromoForm(existing) {
     void root;
 }
 
+function editorPromoList() {
+    const base = Array.isArray(EDITOR_STORE.promos) ? EDITOR_STORE.promos.slice() : getPromos().slice();
+    return base.map(p => Object.assign({}, p, { id: p.id || editorGenerateId('promo') }));
+}
+
 function openPromotionsManager() {
-    const list = Array.isArray(EDITOR_STORE.promos) ? EDITOR_STORE.promos : [];
+    const list = editorPromoList();
 
     function renderList(rootEl) {
         const listEl = rootEl.querySelector('[data-ed-list]');
