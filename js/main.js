@@ -304,7 +304,9 @@ function renderPopup() {
                                 <span class="msel__caret" aria-hidden="true"></span>
                             </button>
                             <div class="msel__dropdown" id="msel-dropdown" hidden role="listbox">
-                                ${serviceItems}
+                                <div class="msel__scroll">
+                                    ${serviceItems}
+                                </div>
                                 <button type="button" class="btn btn--accent btn--block msel__done" id="msel-done">Добавить</button>
                             </div>
                         </div>
