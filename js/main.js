@@ -40,6 +40,21 @@ const spamGuard = {
 
 let leadSending = false;
 
+/* Frontend-редактор: источник данных. Пока в localStorage нет правок —
+   возвращаем оригинальные массивы из data.js. */
+function getPromos() {
+    return (window.MiEditorData && window.MiEditorData.promos) || PROMOS;
+}
+
+function getServices() {
+    return (window.MiEditorData && window.MiEditorData.services) || SERVICES;
+}
+
+function getPortfolioItems() {
+    const list = (window.MiEditorData && window.MiEditorData.portfolio) || PORTFOLIO_IMAGES;
+    return list.map((it, i) => (typeof it === 'string' ? { id: 'pf_' + i, image: it } : it));
+}
+
 function getSessionLeadCount() {
     const n = parseInt(sessionStorage.getItem('mi_lead_count') || '0', 10);
     return Number.isFinite(n) ? n : 0;
@@ -189,7 +204,7 @@ function renderFooter() {
                     <div class="footer__brand">
                         <a href="index.html" class="footer__logo">Mi<span>Studio</span></a>
                         <div class="grotesk-rule footer__rule" aria-hidden="true"></div>
-                        <p class="footer__desc">Студия красоты в Нижнем Новгороде — уютная атмосфера, профессиональный уход и заметный результат.</p>
+                        <p class="footer__desc" data-editable="text" data-editable-id="footer_desc">Студия красоты в Нижнем Новгороде — уютная атмосфера, профессиональный уход и заметный результат.</p>
                     </div>
                     <div class="footer__cols">
                         <div class="footer__col">
@@ -204,9 +219,9 @@ function renderFooter() {
                         <div class="footer__col">
                             <div class="footer__title">Контакты</div>
                             <div class="footer__contact">
-                                <span class="footer__meta">${CONFIG.address}</span>
+                                <span class="footer__meta" data-editable="text" data-editable-id="footer_address">${CONFIG.address}</span>
                                 <div class="footer__phones">${phones}</div>
-                                <span class="footer__meta">${CONFIG.schedule}</span>
+                                <span class="footer__meta" data-editable="text" data-editable-id="footer_schedule">${CONFIG.schedule}</span>
                             </div>
                         </div>
                         <div class="footer__col">
@@ -226,7 +241,7 @@ function renderFooter() {
 }
 
 function renderPopup() {
-    const serviceItems = SERVICES.map(s => `
+    const serviceItems = getServices().map(s => `
         <label class="msel__option">
             <input type="checkbox" value="${s.title}">
             <span>${s.title}</span>
@@ -547,7 +562,7 @@ function openServicePopup(service) {
                 <p class="service-popup__eyebrow">Услуга</p>
                 <h2 class="popup__title service-popup__title">${service.title}</h2>
                 <div class="grotesk-rule service-popup__rule" aria-hidden="true"></div>
-                <p class="popup__subtitle service-popup__desc">${service.shortDesc}</p>
+                <p class="popup__subtitle service-popup__desc">${service.shortDesc || ''}</p>
             </header>
             <div class="service-popup__body">
                 ${renderServicePopupBody(service)}
@@ -578,7 +593,7 @@ function initServicePopupScroll(root) {
 }
 
 function openServiceById(id) {
-    const service = SERVICES.find(s => s.id === id);
+    const service = getServices().find(s => s.id === id);
     if (service) openServicePopup(service);
 }
 
@@ -770,7 +785,7 @@ function renderServiceBadges() {
 }
 
 function promoLabel(title) {
-    const promo = PROMOS.find(p => p.title === title);
+    const promo = getPromos().find(p => p.title === title);
     return promo ? `${promo.badge} · ${promo.title}` : title;
 }
 
@@ -1253,6 +1268,8 @@ function initCarousel(root) {
     const dotsWrap = root.querySelector('.carousel__dots');
     if (!track || slides.length < 2) return;
 
+    if (root.__carouselCleanup) root.__carouselCleanup();
+
     let index = 0;
     const count = slides.length;
 
@@ -1274,17 +1291,28 @@ function initCarousel(root) {
 
     const prev = root.querySelector('.carousel__btn--prev');
     const next = root.querySelector('.carousel__btn--next');
-    if (prev) prev.addEventListener('click', e => { e.stopPropagation(); go(index - 1); });
-    if (next) next.addEventListener('click', e => { e.stopPropagation(); go(index + 1); });
+    const onPrev = e => { e.stopPropagation(); go(index - 1); };
+    const onNext = e => { e.stopPropagation(); go(index + 1); };
+    if (prev) prev.addEventListener('click', onPrev);
+    if (next) next.addEventListener('click', onNext);
 
     let touchX = null;
-    root.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
-    root.addEventListener('touchend', e => {
+    const onTouchStart = e => { touchX = e.touches[0].clientX; };
+    const onTouchEnd = e => {
         if (touchX === null) return;
         const dx = e.changedTouches[0].clientX - touchX;
         if (Math.abs(dx) > 40) go(index + (dx < 0 ? 1 : -1));
         touchX = null;
-    }, { passive: true });
+    };
+    root.addEventListener('touchstart', onTouchStart, { passive: true });
+    root.addEventListener('touchend', onTouchEnd, { passive: true });
+
+    root.__carouselCleanup = () => {
+        if (prev) prev.removeEventListener('click', onPrev);
+        if (next) next.removeEventListener('click', onNext);
+        root.removeEventListener('touchstart', onTouchStart);
+        root.removeEventListener('touchend', onTouchEnd);
+    };
 }
 
 /* --------------------------------------------------------------------------
@@ -1292,13 +1320,14 @@ function initCarousel(root) {
    -------------------------------------------------------------------------- */
 
 function renderServiceCard(service) {
-    const slides = service.images.map(src =>
+    const images = Array.isArray(service.images) ? service.images : [];
+    const slides = images.map(src =>
         `<div class="carousel__slide"><img src="${src}" alt="${service.title}" loading="lazy"></div>`).join('');
 
-    const masters = service.masters.map(m =>
-        `<div class="master-pill"><strong>${m.name}</strong><span>${m.desc}</span></div>`).join('');
+    const masters = Array.isArray(service.masters) ? service.masters.map(m =>
+        `<div class="master-pill"><strong>${m.name}</strong><span>${m.desc}</span></div>`).join('') : '';
 
-    const price = service.price.map((block, bi) => `
+    const price = (Array.isArray(service.price) ? service.price : []).map((block, bi) => `
         <details class="price-acc" ${bi === 0 ? 'open' : ''}>
             <summary class="price-acc__head">${block.section}</summary>
             <div class="price-acc__body">
@@ -1315,24 +1344,31 @@ function renderServiceCard(service) {
         </details>`).join('');
 
     const contacts = [
-        service.phone ? `<a href="tel:+${service.phone.replace(/[^0-9]/g, '')}">${service.phoneDisplay}</a>` : '',
-        `<a href="${service.vk}" target="_blank" rel="noopener">VK</a>`,
-        `<a href="${service.tg}" target="_blank" rel="noopener">Telegram</a>`
+        service.phone ? `<a href="tel:+${service.phone.replace(/[^0-9]/g, '')}">${service.phoneDisplay || service.phone}</a>` : '',
+        service.vk ? `<a href="${service.vk}" target="_blank" rel="noopener">VK</a>` : '',
+        service.tg ? `<a href="${service.tg}" target="_blank" rel="noopener">Telegram</a>` : ''
     ].filter(Boolean).join('');
+
+    const carouselHtml = images.length ? `
+        <div class="carousel">
+            <div class="carousel__track">${slides}</div>
+            <button class="carousel__btn carousel__btn--prev" aria-label="Предыдущий">&#10094;</button>
+            <button class="carousel__btn carousel__btn--next" aria-label="Следующий">&#10095;</button>
+            <div class="carousel__dots"></div>
+        </div>` : '';
+
+    const priceTextHtml = service.priceText
+        ? `<div class="detail-card__simple-price">${service.priceText}</div>`
+        : '';
 
     return `
         <article class="detail-card" id="${service.id}">
-            <div class="carousel">
-                <div class="carousel__track">${slides}</div>
-                <button class="carousel__btn carousel__btn--prev" aria-label="Предыдущий">&#10094;</button>
-                <button class="carousel__btn carousel__btn--next" aria-label="Следующий">&#10095;</button>
-                <div class="carousel__dots"></div>
-            </div>
+            ${carouselHtml}
             <div class="detail-card__head">
                 <h2 class="detail-card__title">${service.title}</h2>
                 <div class="masters">${masters}</div>
             </div>
-            <div class="detail-card__price">${price}</div>
+            <div class="detail-card__price">${price}${priceTextHtml}</div>
             <div class="detail-card__actions">
                 <button class="btn btn--accent" data-open-popup data-service="${service.title}">Оставить заявку</button>
                 <a class="btn btn--outline" href="${CONFIG.dikidiUrl}" target="_blank" rel="noopener">Записаться онлайн</a>
@@ -1344,7 +1380,7 @@ function renderServiceCard(service) {
 function renderServicesPage() {
     const wrap = document.getElementById('services-list');
     if (!wrap) return;
-    wrap.innerHTML = SERVICES.map(renderServiceCard).join('');
+    wrap.innerHTML = getServices().map(renderServiceCard).join('');
     document.querySelectorAll('.carousel').forEach(initCarousel);
     scrollToHash();
 }
@@ -1357,7 +1393,14 @@ function renderPromos() {
     const wrap = document.getElementById('promos-list');
     if (!wrap) return;
 
-    const pieces = PROMOS.flatMap(p => {
+    const list = getPromos().filter(p => p.isActive !== false);
+
+    if (!list.length) {
+        wrap.innerHTML = '';
+        return;
+    }
+
+    const pieces = list.flatMap(p => {
         const item = `
             <article class="promo-card">
                 <span class="promo-card__shine" aria-hidden="true"></span>
@@ -1388,6 +1431,9 @@ function initPromoMarquee(viewport) {
     const track = viewport.querySelector('.promo-marquee__track');
     if (!track) return;
 
+    if (viewport.__promoCleanup) viewport.__promoCleanup();
+    let raf = 0;
+
     let offset = 0;
     let paused = false;
     let dragging = false;
@@ -1395,7 +1441,6 @@ function initPromoMarquee(viewport) {
     let startX = 0;
     let startOffset = 0;
     let moved = false;
-    let raf = 0;
     const speed = 0.45;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1473,19 +1518,24 @@ function initPromoMarquee(viewport) {
     if (!reduceMotion) raf = requestAnimationFrame(tick);
     else apply();
 
-    window.addEventListener('beforeunload', () => cancelAnimationFrame(raf), { once: true });
+    const onUnload = () => cancelAnimationFrame(raf);
+    window.addEventListener('beforeunload', onUnload);
+    viewport.__promoCleanup = () => {
+        cancelAnimationFrame(raf);
+        window.removeEventListener('beforeunload', onUnload);
+    };
 }
 
 function renderServicePreviews() {
     const wrap = document.getElementById('services-preview');
     if (!wrap) return;
 
-    wrap.innerHTML = SERVICES.map(s => `
+    wrap.innerHTML = getServices().map(s => `
         <button type="button" class="service-card card-3d-host" data-toggle-service="${s.id}">
             <div class="card-3d__face">
                 <div class="card-3d__shine" aria-hidden="true"></div>
                 <div class="service-card__media">
-                    <img src="${s.images[0]}" alt="${s.title}" loading="lazy" draggable="false">
+                    <img src="${(s.images && s.images[0]) || ''}" alt="${s.title}" loading="lazy" draggable="false">
                 </div>
                 <div class="service-card__body">
                     <div class="service-card__title">${s.title}</div>
@@ -1525,7 +1575,7 @@ function masterInitials(fullName) {
 }
 
 function renderServicePopupBody(service) {
-    const masters = service.masters.map(m => {
+    const masters = (Array.isArray(service.masters) ? service.masters : []).map(m => {
         const { surname, given } = splitMasterName(m.name);
         const photo = m.photo
             ? `<img class="master-card__img" src="${m.photo}" alt="${m.name}" loading="lazy">`
@@ -1537,12 +1587,12 @@ function renderServicePopupBody(service) {
                 <div class="master-card__body">
                     ${surname ? `<p class="master-card__surname">${surname}</p>` : ''}
                     <h4 class="master-card__name">${given || m.name}</h4>
-                    <p class="master-card__desc">${m.desc}</p>
+                    <p class="master-card__desc">${m.desc || ''}</p>
                 </div>
             </article>`;
     }).join('');
 
-    const price = service.price.map((block, bi) => `
+    const price = (Array.isArray(service.price) ? service.price : []).map((block, bi) => `
         <details class="price-sheet" ${bi === 0 ? 'open' : ''}>
             <summary class="price-sheet__head">
                 <span>${block.section}</span>
@@ -1582,6 +1632,9 @@ function initCardTilt(root, selector) {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     if (reduceMotion) return;
 
+    if (root.__tiltCleanup) root.__tiltCleanup();
+    const cleanups = [];
+
     function resetTilt(face) {
         face.style.setProperty('--tilt-x', '0deg');
         face.style.setProperty('--tilt-y', '0deg');
@@ -1593,11 +1646,11 @@ function initCardTilt(root, selector) {
         const face = host.querySelector('.card-3d__face');
         if (!face) return;
 
-        host.addEventListener('pointerenter', () => {
+        const onEnter = () => {
             host._tiltRect = host.getBoundingClientRect();
-        });
+        };
 
-        host.addEventListener('pointermove', e => {
+        const onMove = e => {
             const rail = host.closest('[id$="-rail"]');
             if (rail?.dataset.dragged === '1') return;
 
@@ -1613,13 +1666,27 @@ function initCardTilt(root, selector) {
             face.style.setProperty('--shine-x', `${(x + 0.5) * 100}%`);
             face.style.setProperty('--shine-y', `${(y + 0.5) * 100}%`);
             face.classList.add('is-tilting');
-        });
+        };
 
-        host.addEventListener('pointerleave', () => {
+        const onLeave = () => {
             host._tiltRect = null;
             resetTilt(face);
+        };
+
+        host.addEventListener('pointerenter', onEnter);
+        host.addEventListener('pointermove', onMove);
+        host.addEventListener('pointerleave', onLeave);
+        cleanups.push(() => {
+            host.removeEventListener('pointerenter', onEnter);
+            host.removeEventListener('pointermove', onMove);
+            host.removeEventListener('pointerleave', onLeave);
         });
     });
+
+    root.__tiltCleanup = () => {
+        cleanups.forEach(fn => fn());
+        cleanups.length = 0;
+    };
 }
 
 function initArrowRail(railId, trackId, cardSelector) {
@@ -1629,6 +1696,8 @@ function initArrowRail(railId, trackId, cardSelector) {
     const prevBtn = rail?.querySelector('[data-rail-prev]');
     const nextBtn = rail?.querySelector('[data-rail-next]');
     if (!rail || !viewport || !track || !prevBtn || !nextBtn) return;
+
+    if (rail.__arrowCleanup) rail.__arrowCleanup();
 
     let offset = 0;
     let dragging = false;
@@ -1669,16 +1738,10 @@ function initArrowRail(railId, trackId, cardSelector) {
         apply(false);
     }
 
-    prevBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        move(-1);
-    });
-    nextBtn.addEventListener('click', e => {
-        e.stopPropagation();
-        move(1);
-    });
+    const onPrev = e => { e.stopPropagation(); move(-1); };
+    const onNext = e => { e.stopPropagation(); move(1); };
 
-    viewport.addEventListener('pointerdown', e => {
+    function onPointerDown(e) {
         if (e.button !== 0) return;
         if (e.target.closest('.rail-arrow')) return;
         pointerActive = true;
@@ -1687,9 +1750,9 @@ function initArrowRail(railId, trackId, cardSelector) {
         startX = e.clientX;
         startOffset = offset;
         rail.dataset.dragged = '0';
-    });
+    }
 
-    viewport.addEventListener('pointermove', e => {
+    function onPointerMove(e) {
         if (!pointerActive || e.pointerId !== pointerId) return;
         const dx = e.clientX - startX;
 
@@ -1703,9 +1766,9 @@ function initArrowRail(railId, trackId, cardSelector) {
 
         offset = startOffset - dx;
         apply(true);
-    });
+    }
 
-    function endDrag(e) {
+    function onPointerUp(e) {
         if (!pointerActive || (e && e.pointerId !== pointerId)) return;
         pointerActive = false;
 
@@ -1729,10 +1792,26 @@ function initArrowRail(railId, trackId, cardSelector) {
         pointerId = null;
     }
 
-    viewport.addEventListener('pointerup', endDrag);
-    viewport.addEventListener('pointercancel', endDrag);
-    window.addEventListener('resize', () => apply(true));
+    const onResize = () => apply(true);
+
+    prevBtn.addEventListener('click', onPrev);
+    nextBtn.addEventListener('click', onNext);
+    viewport.addEventListener('pointerdown', onPointerDown);
+    viewport.addEventListener('pointermove', onPointerMove);
+    viewport.addEventListener('pointerup', onPointerUp);
+    viewport.addEventListener('pointercancel', onPointerUp);
+    window.addEventListener('resize', onResize);
     apply(true);
+
+    rail.__arrowCleanup = () => {
+        prevBtn.removeEventListener('click', onPrev);
+        nextBtn.removeEventListener('click', onNext);
+        viewport.removeEventListener('pointerdown', onPointerDown);
+        viewport.removeEventListener('pointermove', onPointerMove);
+        viewport.removeEventListener('pointerup', onPointerUp);
+        viewport.removeEventListener('pointercancel', onPointerUp);
+        window.removeEventListener('resize', onResize);
+    };
 }
 
 /* --------------------------------------------------------------------------
@@ -1743,11 +1822,14 @@ function renderGallery() {
     const wrap = document.getElementById('gallery');
     if (!wrap) return;
 
-    wrap.innerHTML = PORTFOLIO_IMAGES.map((src, i) => `
+    const items = getPortfolioItems();
+
+    wrap.innerHTML = items.map((item, i) => `
         <div class="gallery-item card-3d-host" data-index="${i}">
             <div class="card-3d__face">
                 <div class="card-3d__shine" aria-hidden="true"></div>
-                <img src="${src}" alt="Работа ${i + 1}" loading="lazy" draggable="false">
+                <img src="${item.image || ''}" alt="${item.title || 'Работа ' + (i + 1)}" loading="lazy" draggable="false">
+                ${item.title ? `<span class="gallery-item__caption">${item.title}</span>` : ''}
             </div>
         </div>`).join('');
 
@@ -1756,19 +1838,20 @@ function renderGallery() {
     }
 
     initCardTilt(wrap, '.card-3d-host');
-    initLightbox(wrap);
+    initLightbox(wrap, items);
 }
 
-function initLightbox(wrap) {
+function initLightbox(wrap, items) {
     const lightbox = document.getElementById('lightbox');
     if (!lightbox) return;
     const img = lightbox.querySelector('.lightbox__img');
+    const itemsList = items || getPortfolioItems();
     let current = 0;
 
     const show = i => {
-        current = (i + PORTFOLIO_IMAGES.length) % PORTFOLIO_IMAGES.length;
-        img.src = PORTFOLIO_IMAGES[current];
-        img.alt = 'Работа ' + (current + 1);
+        current = (i + itemsList.length) % itemsList.length;
+        img.src = itemsList[current].image || '';
+        img.alt = itemsList[current].title || 'Работа ' + (current + 1);
         lightbox.classList.add('is-open');
         document.body.style.overflow = 'hidden';
     };
@@ -1782,16 +1865,19 @@ function initLightbox(wrap) {
         item.addEventListener('click', () => show(parseInt(item.dataset.index, 10)));
     });
 
-    lightbox.querySelector('[data-close-lightbox]').addEventListener('click', hide);
-    lightbox.addEventListener('click', e => { if (e.target === lightbox) hide(); });
-    lightbox.querySelector('[data-lb-prev]').addEventListener('click', e => { e.stopPropagation(); show(current - 1); });
-    lightbox.querySelector('[data-lb-next]').addEventListener('click', e => { e.stopPropagation(); show(current + 1); });
-    document.addEventListener('keydown', e => {
-        if (!lightbox.classList.contains('is-open')) return;
-        if (e.key === 'Escape') hide();
-        if (e.key === 'ArrowLeft') show(current - 1);
-        if (e.key === 'ArrowRight') show(current + 1);
-    });
+    if (!lightbox.__bound) {
+        lightbox.__bound = true;
+        lightbox.querySelector('[data-close-lightbox]').addEventListener('click', hide);
+        lightbox.addEventListener('click', e => { if (e.target === lightbox) hide(); });
+        lightbox.querySelector('[data-lb-prev]').addEventListener('click', e => { e.stopPropagation(); show(current - 1); });
+        lightbox.querySelector('[data-lb-next]').addEventListener('click', e => { e.stopPropagation(); show(current + 1); });
+        document.addEventListener('keydown', e => {
+            if (!lightbox.classList.contains('is-open')) return;
+            if (e.key === 'Escape') hide();
+            if (e.key === 'ArrowLeft') show(current - 1);
+            if (e.key === 'ArrowRight') show(current + 1);
+        });
+    }
 }
 
 /* --------------------------------------------------------------------------
@@ -1866,7 +1952,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (hash && sectionIds.includes(hash)) {
         scrollToHash();
-    } else if (document.body.dataset.page === 'index' && SERVICES.some(s => s.id === hash)) {
+    } else if (document.body.dataset.page === 'index' && getServices().some(s => s.id === hash)) {
         // попап услуги по #id — без прыжка к середине страницы
         window.scrollTo(0, 0);
         openServiceById(hash);

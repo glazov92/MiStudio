@@ -17,6 +17,7 @@
     <link href="https://fonts.bunny.net/css?family=onest:300,400,500,600,700|space-grotesk:400,500,600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/editor.css?v=20260816-11">
 </head>
 <body data-page="services">
 
@@ -27,9 +28,9 @@
             <div class="container">
                 <div class="section__head">
                     <span class="section__dot"></span>
-                    <h1 class="section__title">Услуги и цены</h1>
+                    <h1 class="section__title" data-editable="text" data-editable-id="svc_title">Услуги и цены</h1>
                 </div>
-                <p class="section__sub">Выберите направление, посмотрите прайс и запишитесь на удобное время. Заявки обрабатываются в течение рабочего дня.</p>
+                <p class="section__sub" data-editable="text" data-editable-id="svc_sub">Выберите направление, посмотрите прайс и запишитесь на удобное время. Заявки обрабатываются в течение рабочего дня.</p>
                 <div id="services-list" style="margin-top:32px"></div>
             </div>
         </section>
@@ -40,8 +41,13 @@
     <div id="float-root"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/browser/overlayscrollbars.browser.es6.min.js"></script>
-    <script src="config.js?v=20260816-10"></script>
-    <script src="js/data.js?v=20260816-10"></script>
-    <script src="js/main.js?v=20260816-10"></script>
+    <script src="config.js?v=20260816-11"></script>
+    <script src="js/data.js?v=20260816-11"></script>
+    <script src="js/main.js?v=20260816-11"></script>
+    <script src="js/storage.js?v=20260816-11"></script>
+    <script src="js/editor.js?v=20260816-11"></script>
+    <script src="js/sections/promotions.js?v=20260816-11"></script>
+    <script src="js/sections/services.js?v=20260816-11"></script>
+    <script src="js/sections/portfolio.js?v=20260816-11"></script>
 </body>
 </html>

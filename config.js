@@ -15,3 +15,18 @@ const CONFIG = {
     tgUrl: 'https://t.me/+O-PmXu8y27FkMDg6',
     mapEmbedUrl: 'https://yandex.ru/map-widget/v1/?um=constructor%3A7917f6eb3e7bb797317f281380a5a3f7e95bdb323b7377ff3a43e5c569ba7db4&source=constructor'
 };
+
+// Frontend-редактор: активация по ?edit=КЛЮЧ, хранение в localStorage.
+// Ключ — затычка, задать настоящий позже. Хранится на клиенте: это НЕ защита,
+// а просто "дверь с защёлкой" (см. ТЗ, раздел 8.3).
+const EDITOR_CONFIG = {
+    secretKey: '123',
+    maxImageSize: 3 * 1024 * 1024,   // 3 МБ на файл
+    maxImageEdge: 1600,              // автожатие: длинная сторона не больше 1600px (JPEG 0.82)
+    storagePrefix: 'mistudio_editor_',
+    sections: {
+        promotions: { label: 'Акции', icon: '🎯', selector: '#promos, .promos__hint', render: 'promos' },
+        services:   { label: 'Услуги', icon: '🔧', selector: '#services, #services-list', render: 'services' },
+        portfolio:  { label: 'Портфолио', icon: '📁', selector: '#portfolio, #gallery', render: 'portfolio' }
+    }
+};

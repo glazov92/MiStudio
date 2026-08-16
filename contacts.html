@@ -17,6 +17,7 @@
     <link href="https://fonts.bunny.net/css?family=onest:300,400,500,600,700|space-grotesk:400,500,600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/editor.css?v=20260816-11">
 </head>
 <body data-page="contacts">
 
@@ -27,9 +28,9 @@
             <div class="container">
                 <div class="section__head">
                     <span class="section__dot"></span>
-                    <h1 class="section__title">Контакты</h1>
+                    <h1 class="section__title" data-editable="text" data-editable-id="ct_title">Контакты</h1>
                 </div>
-                <p class="section__sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
+                <p class="section__sub" data-editable="text" data-editable-id="ct_sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
 
                 <div class="contacts__grid" style="margin-top:28px">
                     <div class="contact-card">
@@ -38,7 +39,7 @@
                         </div>
                         <div>
                             <span class="contact-card__label">Адрес</span>
-                            <span class="contact-card__value" id="c-address"></span>
+                            <span class="contact-card__value" id="c-address" data-editable="text" data-editable-id="ct_address"></span>
                         </div>
                     </div>
 
@@ -48,8 +49,8 @@
                         </div>
                         <div>
                             <span class="contact-card__label">Телефоны</span>
-                            <a class="contact-card__value" id="c-phone1" href="#"></a>
-                            <a class="contact-card__value" id="c-phone2" href="#"></a>
+                            <a class="contact-card__value" id="c-phone1" href="#" data-editable="text" data-editable-id="ct_phone1"></a>
+                            <a class="contact-card__value" id="c-phone2" href="#" data-editable="text" data-editable-id="ct_phone2"></a>
                         </div>
                     </div>
 
@@ -59,7 +60,7 @@
                         </div>
                         <div>
                             <span class="contact-card__label">Часы работы</span>
-                            <span class="contact-card__value" id="c-schedule"></span>
+                            <span class="contact-card__value" id="c-schedule" data-editable="text" data-editable-id="ct_schedule"></span>
                         </div>
                     </div>
 
@@ -90,8 +91,13 @@
     <div id="float-root"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/browser/overlayscrollbars.browser.es6.min.js"></script>
-    <script src="config.js?v=20260816-10"></script>
-    <script src="js/data.js?v=20260816-10"></script>
-    <script src="js/main.js?v=20260816-10"></script>
+    <script src="config.js?v=20260816-11"></script>
+    <script src="js/data.js?v=20260816-11"></script>
+    <script src="js/main.js?v=20260816-11"></script>
+    <script src="js/storage.js?v=20260816-11"></script>
+    <script src="js/editor.js?v=20260816-11"></script>
+    <script src="js/sections/promotions.js?v=20260816-11"></script>
+    <script src="js/sections/services.js?v=20260816-11"></script>
+    <script src="js/sections/portfolio.js?v=20260816-11"></script>
 </body>
 </html>

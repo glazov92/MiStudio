@@ -18,6 +18,7 @@
     <link href="https://fonts.bunny.net/css?family=onest:300,400,500,600,700|space-grotesk:400,500,600,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/styles/overlayscrollbars.min.css">
     <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/editor.css?v=20260816-11">
 </head>
 <body data-page="index">
 
@@ -29,11 +30,11 @@
             <div class="hero__atmosphere" aria-hidden="true"></div>
             <div class="container hero__inner">
                 <div class="hero__copy">
-                    <p class="hero__meta"><span>NN</span> · beauty atelier</p>
-                    <p class="hero__brand">Mi<span>Studio</span></p>
-                    <h1 class="hero__title">Красота как ритуал</h1>
+                    <p class="hero__meta" data-editable="text" data-editable-id="hero_meta"><span>NN</span> · beauty atelier</p>
+                    <p class="hero__brand" data-editable="text" data-editable-id="hero_brand">Mi<span>Studio</span></p>
+                    <h1 class="hero__title" data-editable="text" data-editable-id="hero_title">Красота как ритуал</h1>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="hero__subtitle">Уютная атмосфера, профессиональный уход и заметный результат в Нижнем Новгороде</p>
+                    <p class="hero__subtitle" data-editable="text" data-editable-id="hero_subtitle">Уютная атмосфера, профессиональный уход и заметный результат в Нижнем Новгороде</p>
                     <div class="hero__actions">
                         <button type="button" class="btn btn--accent" data-open-popup>Записаться</button>
                         <a class="btn btn--outline" href="#services">Смотреть услуги</a>
@@ -43,13 +44,13 @@
                 <div class="hero__stage" data-hero-stage>
                     <div class="hero__orbit" data-hero-orbit>
                         <figure class="hero__plane hero__plane--back">
-                            <img src="img/cta-modal.jpg" alt="" loading="eager">
+                            <img src="img/cta-modal.jpg" alt="" loading="eager" data-editable="image" data-editable-id="hero_img_back">
                         </figure>
                         <figure class="hero__plane hero__plane--mid">
-                            <img src="img/main-img.jpg" alt="Mi Studio" loading="eager">
+                            <img src="img/main-img.jpg" alt="Mi Studio" loading="eager" data-editable="image" data-editable-id="hero_img_mid">
                         </figure>
                         <figure class="hero__plane hero__plane--front">
-                            <img src="img/makiyazh.jpg" alt="" loading="eager">
+                            <img src="img/makiyazh.jpg" alt="" loading="eager" data-editable="image" data-editable-id="hero_img_front">
                         </figure>
                     </div>
                 </div>
@@ -64,14 +65,14 @@
             <div class="promos__glow" aria-hidden="true"></div>
             <div class="container">
                 <div class="section__intro section__intro--promos">
-                    <p class="section__eyebrow"><span class="section__index">★</span> Выгодные предложения</p>
-                    <h2 class="section__title section__title--display" id="promos-title">Акции студии</h2>
+                    <p class="section__eyebrow" data-editable="text" data-editable-id="promos_eyebrow"><span class="section__index">★</span> Выгодные предложения</p>
+                    <h2 class="section__title section__title--display" id="promos-title" data-editable="text" data-editable-id="promos_title">Акции студии</h2>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="section__sub">Специальные условия, которые хочется успеть — нажмите на карточку, чтобы оставить заявку.</p>
+                    <p class="section__sub" data-editable="text" data-editable-id="promos_sub">Специальные условия, которые хочется успеть — нажмите на карточку, чтобы оставить заявку.</p>
                 </div>
             </div>
             <div class="promo-marquee" id="promos-list" aria-label="Лента акций"></div>
-            <p class="promos__hint">Листайте ленту · нажмите карточку, чтобы записаться</p>
+            <p class="promos__hint" data-editable="text" data-editable-id="promos_hint">Листайте ленту · нажмите карточку, чтобы записаться</p>
         </section>
 
         <!-- Услуги -->
@@ -80,10 +81,10 @@
             <span class="grotesk-mark" aria-hidden="true">01</span>
             <div class="container">
                 <div class="section__intro">
-                    <p class="section__eyebrow"><span class="section__index">01</span> Меню заботы</p>
-                    <h2 class="section__title section__title--display">Услуги студии</h2>
+                    <p class="section__eyebrow" data-editable="text" data-editable-id="services_eyebrow"><span class="section__index">01</span> Меню заботы</p>
+                    <h2 class="section__title section__title--display" data-editable="text" data-editable-id="services_title">Услуги студии</h2>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="section__sub">Косметология, массаж, макияж, нутрициолог и восковая депиляция — у опытных мастеров с прозрачными прайсами. Нажмите на карточку, чтобы открыть мастеров и прайс.</p>
+                    <p class="section__sub" data-editable="text" data-editable-id="services_sub">Косметология, массаж, макияж, нутрициолог и восковая депиляция — у опытных мастеров с прозрачными прайсами. Нажмите на карточку, чтобы открыть мастеров и прайс.</p>
                 </div>
             </div>
             <div class="services-rail" id="services-rail">
@@ -106,15 +107,15 @@
             <div class="container about__grid">
                 <div class="about__media">
                     <div class="about__frame">
-                        <img class="about__img" src="img/cta-modal.jpg" alt="О студии Mi Studio" loading="lazy">
+                        <img class="about__img" src="img/cta-modal.jpg" alt="О студии Mi Studio" loading="lazy" data-editable="image" data-editable-id="about_image">
                         <div class="about__glow" aria-hidden="true"></div>
                     </div>
                 </div>
                 <div class="about__content">
-                    <p class="section__eyebrow"><span class="section__index">02</span> О студии</p>
-                    <h2 class="section__title section__title--display">Пространство<br>гармонии</h2>
+                    <p class="section__eyebrow" data-editable="text" data-editable-id="about_eyebrow"><span class="section__index">02</span> О студии</p>
+                    <h2 class="section__title section__title--display" data-editable="text" data-editable-id="about_title">Пространство<br>гармонии</h2>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="about__text">Мы — место, где забота о себе становится ритуалом. В «Mi Studio» сочетаются научный подход и индивидуальный уход: искусство, профессионализм и передовые технологии, чтобы подчеркнуть вашу природную красоту.</p>
+                    <p class="about__text" data-editable="text" data-editable-id="about_text">Мы — место, где забота о себе становится ритуалом. В «Mi Studio» сочетаются научный подход и индивидуальный уход: искусство, профессионализм и передовые технологии, чтобы подчеркнуть вашу природную красоту.</p>
                     <a class="btn btn--outline" href="#contacts">Как нас найти</a>
                 </div>
             </div>
@@ -126,10 +127,10 @@
             <span class="grotesk-mark" aria-hidden="true">03</span>
             <div class="container">
                 <div class="section__intro">
-                    <p class="section__eyebrow"><span class="section__index">03</span> Работы</p>
-                    <h2 class="section__title section__title--display">Портфолио</h2>
+                    <p class="section__eyebrow" data-editable="text" data-editable-id="portfolio_eyebrow"><span class="section__index">03</span> Работы</p>
+                    <h2 class="section__title section__title--display" data-editable="text" data-editable-id="portfolio_title">Портфолио</h2>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="section__sub">Работы наших мастеров. Больше примеров — в сообществе студии ВКонтакте и Telegram.</p>
+                    <p class="section__sub" data-editable="text" data-editable-id="portfolio_sub">Работы наших мастеров. Больше примеров — в сообществе студии ВКонтакте и Telegram.</p>
                 </div>
             </div>
             <div class="portfolio-rail" id="portfolio-rail">
@@ -151,26 +152,26 @@
             <span class="grotesk-mark grotesk-mark--right" aria-hidden="true">04</span>
             <div class="container">
                 <div class="section__intro">
-                    <p class="section__eyebrow"><span class="section__index">04</span> Связь</p>
-                    <h2 class="section__title section__title--display">Контакты</h2>
+                    <p class="section__eyebrow" data-editable="text" data-editable-id="contacts_eyebrow"><span class="section__index">04</span> Связь</p>
+                    <h2 class="section__title section__title--display" data-editable="text" data-editable-id="contacts_title">Контакты</h2>
                     <div class="grotesk-rule" aria-hidden="true"></div>
-                    <p class="section__sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
+                    <p class="section__sub" data-editable="text" data-editable-id="contacts_sub">Позвоните, напишите нам или оставьте заявку — подберём удобное время.</p>
                 </div>
 
                 <div class="contacts-layout">
                     <div class="contacts-panel">
                         <div class="contacts-panel__item">
                             <span class="contacts-panel__label">Адрес</span>
-                            <span class="contacts-panel__value" id="c-address"></span>
+                            <span class="contacts-panel__value" id="c-address" data-editable="text" data-editable-id="contacts_address"></span>
                         </div>
                         <div class="contacts-panel__item">
                             <span class="contacts-panel__label">Телефоны</span>
-                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone1" href="#"></a>
-                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone2" href="#"></a>
+                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone1" href="#" data-editable="text" data-editable-id="contacts_phone1"></a>
+                            <a class="contacts-panel__value contacts-panel__phone" id="c-phone2" href="#" data-editable="text" data-editable-id="contacts_phone2"></a>
                         </div>
                         <div class="contacts-panel__item">
                             <span class="contacts-panel__label">Часы работы</span>
-                            <span class="contacts-panel__value" id="c-schedule"></span>
+                            <span class="contacts-panel__value" id="c-schedule" data-editable="text" data-editable-id="contacts_schedule"></span>
                         </div>
                         <div class="contacts-panel__item">
                             <span class="contacts-panel__label">Соцсети</span>
@@ -191,8 +192,13 @@
     <div id="float-root"></div>
 
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.11.1/browser/overlayscrollbars.browser.es6.min.js"></script>
-    <script src="config.js?v=20260816-10"></script>
-    <script src="js/data.js?v=20260816-10"></script>
-    <script src="js/main.js?v=20260816-10"></script>
+    <script src="config.js?v=20260816-11"></script>
+    <script src="js/data.js?v=20260816-11"></script>
+    <script src="js/main.js?v=20260816-11"></script>
+    <script src="js/storage.js?v=20260816-11"></script>
+    <script src="js/editor.js?v=20260816-11"></script>
+    <script src="js/sections/promotions.js?v=20260816-11"></script>
+    <script src="js/sections/services.js?v=20260816-11"></script>
+    <script src="js/sections/portfolio.js?v=20260816-11"></script>
 </body>
 </html>
