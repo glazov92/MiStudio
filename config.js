@@ -3,10 +3,9 @@ const CONFIG = {
     apiVersion: 'v1',                           // позже станет 'v2'
     pocketbaseUrl: 'http://localhost:8090',     // PocketBase (dev); на проде — реальный URL
     usePocketbase: false,                       // true = тянуть услуги из PocketBase (v2.0)
-    leadWebhookUrl: '',                         // Telegram-вебхук (заполнить после создания)
-    // v1.0: заявки идут в Telegram + email-дубль (через вебхук GAS).
-    // v2.0-задел: VK-бот сообщества — здесь появится vkBotUrl (токен/ключ доступа).
-    vkBotUrl: '',                               // задел на VK-бота, в v1.0 не используется
+    leadWebhookUrl: 'https://script.google.com/macros/s/AKfycbwsvC6pFUrUIqa0OM4_1z8eLzbgJbINSfr968wXjOKvbhnjmTuRNi7ZRae5fEfH1jpeMQ/exec', // заявки → беседа VK + email (GAS-вебхук, корпоративная почта)
+    // Заявки идут в беседу VK (webhook/vk-webhook.gs) + email-дубль на studiomi588@gmail.com.
+    vkBotUrl: '',                               // задел, не используется
     dikidiUrl: 'https://dikidi.net/2049120?p=0.pi',
     phones: ['+79334372727', '+79877481787'],
     phonesDisplay: ['+7 (933) 437-27-27', '+7 (987) 748-17-87'],

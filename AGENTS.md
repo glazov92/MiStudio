@@ -57,11 +57,13 @@ MiStudio/
 5. URL-структура API: `/api/v1/leads` (сейчас), `/api/v2/leads` (потом).
 6. Контент услуг лежит в `js/data.js`. В v2.0 подтягивается с PocketBase через REST (fetch), кэш в localStorage. Переключение источника — через `CONFIG.pocketbaseUrl` в `config.js`, рендер тот же.
 
-## Обратная связь v1.0: Telegram + Email, задел под VK
-- Единый вебхук (Google Apps Script, `webhook/telegram-webhook.gs`) принимает POST от `submitLead()`.
-- Каналы доставки заявки: сообщение в Telegram-бот + email-дубль на ящик студии (без VPN).
-- `BOT_TOKEN` и `EMAIL_TO` — в начале `telegram-webhook.gs`; `CHAT_ID` хранится в PropertiesService скрипта.
-- Задел на v2.0: VK-бот сообщества (резервный канал, работает в РФ без VPN). В `config.js` зарезервировано `vkBotUrl` — в v1.0 не используется.
+## Обратная связь: VK-бот сообщества + Email (с 16.08.2026 — основной канал)
+- Группа-бот: Studiomi.bot (club240886388). Токен с правом messages хранится ТОЛЬКО в `webhook/vk-webhook.gs` (не в репозитории/не в config.js).
+- Беседа для заявок: `VK_PEER_ID = 2000000001` (владелец сайта — админ, участников добавляет сам через VK, скрипт не трогаем).
+- `webhook/vk-webhook.gs`: POST от `submitLead()` → `messages.send` в беседу + email-дубль на `studiomi588@gmail.com`. GET `<url>?test` — пробная отправка.
+- Важно: бот-группа шлёт ТОЛЬКО в беседы, где она состоит (ошибка 917 — бот не участник/выгнан). Callback API не нужен — Long Poll.
+- Статус: ЗАДЕПЛОЕН на корпоративный Google-аккаунт студии (16.08.2026). URL вписан в `CONFIG.leadWebhookUrl` в config.js. Проверено тестовой заявкой: сообщение в беседу + email — ок.
+- Telegram-вебхук (`webhook/telegram-webhook.gs`) остался как задел/резерв — не используется.
 - PocketBase коллекция `leads` — статусы: v1.0 `new`, в v2.0 добавятся `processing`, `pending_confirmation`, `confirmed`, `cancelled`.
 
 ## Не делать в v1.0
