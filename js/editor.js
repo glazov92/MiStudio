@@ -92,6 +92,7 @@ function editorScan() {
         const id = el.dataset.editableId || `text_${i}`;
         el.dataset.editableId = id;
         if (el.dataset.editorTextOrig == null) el.dataset.editorTextOrig = el.textContent;
+        if (el.dataset.editorTextOrigHtml == null) el.dataset.editorTextOrigHtml = el.innerHTML;
         EDITOR_ELEMENTS.texts.push({ id, el });
     });
     document.querySelectorAll('[data-editable="image"]').forEach((el, i) => {
@@ -146,7 +147,7 @@ function openTextEditor(entry) {
 
         rootEl.querySelector('[data-ed-reset]').addEventListener('click', () => {
             delete EDITOR_STORE.texts[id];
-            el.textContent = el.dataset.editorTextOrig || '';
+            el.innerHTML = el.dataset.editorTextOrigHtml || editorEscapeHtml(el.dataset.editorTextOrig || '');
             editorSaveJSON('texts', EDITOR_STORE.texts);
             closeEditorModal();
             editorToast('Текст сброшен к оригиналу.');
@@ -357,7 +358,7 @@ function openTextListModal() {
 function openImageListModal() {
     const rows = EDITOR_ELEMENTS.images.map(t => `
         <button type="button" class="ed-item" data-ed-id="${t.id}" data-ed-kind="image">
-            <img class="ed-item__thumb" src="${t.el.src}" alt="">
+            <img class="ed-item__thumb" src="${editorEscapeHtml(t.el.src)}" alt="">
             <span class="ed-item__id">${t.id}</span>
         </button>`).join('') || '<div class="ed-empty">На этой странице нет изображений</div>';
 
