@@ -3147,6 +3147,8 @@ body.nav-open {
 }
 
 .contact-tabs__btn {
+    white-space: nowrap;
+    min-width: 0;
     padding: 10px 8px;
     border-radius: 8px;
     font-size: 13px;
@@ -3981,5 +3983,21 @@ body.nav-open {
 
     body.has-mobile-cta {
         padding-bottom: 84px;
+    }
+
+    /* Контактные вкладки попапа: чтобы «*» обязательного телефона
+       не уезжал на вторую строку на узких экранах */
+    .contact-tabs__btn {
+        font-size: 12px;
+        padding: 10px 6px;
+    }
+}
+
+/* Очень узкие экраны (узкие фолды): ещё компактнее вкладки,
+   чтобы текст «Телефон *» умещался в колонку без переноса */
+@media (max-width: 380px) {
+    .contact-tabs__btn {
+        font-size: 11px;
+        padding: 10px 4px;
     }
 }
