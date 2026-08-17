@@ -1488,61 +1488,49 @@ function initPromoMarquee(viewport) {
     if (!track) return;
 
     if (viewport.__promoCleanup) viewport.__promoCleanup();
+    let raf = 0;
 
-    const cards = Array.from(track.querySelectorAll('.promo-card'));
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    let step = 0;                  // шаг: ширина карточки + отступ
-    let loopWidth = 0;             // длина одного набора = точка бесшовного закольцовывания
-    let offset = 0;                // текущее смещение translateX
+    let offset = 0;
     let paused = false;
     let dragging = false;
     let pointerActive = false;
     let startX = 0;
     let startOffset = 0;
     let moved = false;
-    let interval = 0;
+    const speed = 0.45;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-    const ADVANCE_MS = 3000;       // пауза между шагами
-    const TWEEN_MS = 650;          // длительность плавного сдвига на один шаг
+    /* Истинный период повтора ленты — расстояние от первой карточки первого
+       набора до первой карточки второго (scrollWidth/2 даёт ошибку на пару
+       пикселей из-за отступов → на стыке виден разрыв). */
+    let period = 0;
 
-    function measure() {
-        if (cards.length < 2) { step = 0; loopWidth = 0; return; }
-        const r0 = cards[0].getBoundingClientRect();
-        const r1 = cards[1].getBoundingClientRect();
-        step = Math.max(1, r1.left - r0.left);
-        loopWidth = Math.round(cards.length / 2) * step;
-    }
-
-    function render(smooth) {
-        if (smooth) {
-            track.style.transition = `transform ${TWEEN_MS}ms cubic-bezier(.45,.05,.3,1)`;
+    function measurePeriod() {
+        const cards = track.querySelectorAll('.promo-card');
+        const n = Math.max(1, Math.round(cards.length / 2));
+        if (cards.length >= n + 1) {
+            const a = cards[0].getBoundingClientRect();
+            const b = cards[n].getBoundingClientRect();
+            period = (b.left - a.left) || 1;
         } else {
-            track.style.transition = 'none';
+            period = track.scrollWidth / 2 || 1;
         }
-        track.style.transform = `translateX(${(-offset).toFixed(2)}px)`;
     }
 
-    function schedule() {
-        clearInterval(interval);
-        if (reduceMotion || !step) return;
-        interval = setInterval(() => {
-            if (paused || dragging) return;
-            offset += step;
-            render(true);
-        }, ADVANCE_MS);
+    function apply() {
+        if (!period) measurePeriod();
+        if (!period) period = track.scrollWidth / 2 || 1;
+        offset = ((offset % period) + period) % period;
+        track.style.transform = `translateX(${-offset}px)`;
     }
 
-    /* Бесшовное закольцовывание: доехав до конца первого набора, мгновенно
-       перескакиваем на начало (контент в ленте продублирован — перескок
-       невидим, анимация не дёргается). */
-    track.addEventListener('transitionend', () => {
-        if (loopWidth && offset >= loopWidth - 0.5) {
-            offset -= loopWidth;
-            render(false);
-            schedule();
+    function tick() {
+        if (!paused && !dragging && !reduceMotion) {
+            offset += speed;
+            apply();
         }
-    });
+        raf = requestAnimationFrame(tick);
+    }
 
     viewport.addEventListener('pointerdown', e => {
         if (e.button !== 0) return;
@@ -1565,8 +1553,8 @@ function initPromoMarquee(viewport) {
         }
         if (!dragging) return;
         e.preventDefault();
-        offset = ((startOffset - dx) % loopWidth + loopWidth) % loopWidth;
-        render(false);
+        offset = startOffset - dx;
+        apply();
     });
 
     function endDrag(e) {
@@ -1586,7 +1574,6 @@ function initPromoMarquee(viewport) {
             track.addEventListener('click', blocker, true);
         }
 
-        schedule();
         setTimeout(() => { paused = false; }, 900);
     }
 
@@ -1598,20 +1585,17 @@ function initPromoMarquee(viewport) {
     viewport.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
     viewport.addEventListener('mouseleave', () => { if (!pointerActive) paused = false; });
 
-    const onResize = () => {
-        measure();
-        if (loopWidth) offset = offset % loopWidth;
-        render(false);
-        schedule();
-    };
+    if (!reduceMotion) raf = requestAnimationFrame(tick);
+    else apply();
+
+    const onResize = () => { period = 0; apply(); };
     window.addEventListener('resize', onResize);
 
-    measure();
-    render(false);
-    schedule();
-
+    const onUnload = () => cancelAnimationFrame(raf);
+    window.addEventListener('beforeunload', onUnload);
     viewport.__promoCleanup = () => {
-        clearInterval(interval);
+        cancelAnimationFrame(raf);
+        window.removeEventListener('beforeunload', onUnload);
         window.removeEventListener('resize', onResize);
     };
 }
