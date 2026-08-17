@@ -1488,35 +1488,61 @@ function initPromoMarquee(viewport) {
     if (!track) return;
 
     if (viewport.__promoCleanup) viewport.__promoCleanup();
-    let raf = 0;
 
-    let offset = 0;
+    const cards = Array.from(track.querySelectorAll('.promo-card'));
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    let step = 0;                  // шаг: ширина карточки + отступ
+    let loopWidth = 0;             // длина одного набора = точка бесшовного закольцовывания
+    let offset = 0;                // текущее смещение translateX
     let paused = false;
     let dragging = false;
     let pointerActive = false;
     let startX = 0;
     let startOffset = 0;
     let moved = false;
-    const speed = 0.45;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let interval = 0;
 
-    function halfWidth() {
-        return track.scrollWidth / 2;
+    const ADVANCE_MS = 3000;       // пауза между шагами
+    const TWEEN_MS = 650;          // длительность плавного сдвига на один шаг
+
+    function measure() {
+        if (cards.length < 2) { step = 0; loopWidth = 0; return; }
+        const r0 = cards[0].getBoundingClientRect();
+        const r1 = cards[1].getBoundingClientRect();
+        step = Math.max(1, r1.left - r0.left);
+        loopWidth = Math.round(cards.length / 2) * step;
     }
 
-    function apply() {
-        const half = halfWidth() || 1;
-        offset = ((offset % half) + half) % half;
-        track.style.transform = `translateX(${-offset}px)`;
-    }
-
-    function tick() {
-        if (!paused && !dragging && !reduceMotion) {
-            offset += speed;
-            apply();
+    function render(smooth) {
+        if (smooth) {
+            track.style.transition = `transform ${TWEEN_MS}ms cubic-bezier(.45,.05,.3,1)`;
+        } else {
+            track.style.transition = 'none';
         }
-        raf = requestAnimationFrame(tick);
+        track.style.transform = `translateX(${(-offset).toFixed(2)}px)`;
     }
+
+    function schedule() {
+        clearInterval(interval);
+        if (reduceMotion || !step) return;
+        interval = setInterval(() => {
+            if (paused || dragging) return;
+            offset += step;
+            render(true);
+        }, ADVANCE_MS);
+    }
+
+    /* Бесшовное закольцовывание: доехав до конца первого набора, мгновенно
+       перескакиваем на начало (контент в ленте продублирован — перескок
+       невидим, анимация не дёргается). */
+    track.addEventListener('transitionend', () => {
+        if (loopWidth && offset >= loopWidth - 0.5) {
+            offset -= loopWidth;
+            render(false);
+            schedule();
+        }
+    });
 
     viewport.addEventListener('pointerdown', e => {
         if (e.button !== 0) return;
@@ -1539,8 +1565,8 @@ function initPromoMarquee(viewport) {
         }
         if (!dragging) return;
         e.preventDefault();
-        offset = startOffset - dx;
-        apply();
+        offset = ((startOffset - dx) % loopWidth + loopWidth) % loopWidth;
+        render(false);
     });
 
     function endDrag(e) {
@@ -1560,6 +1586,7 @@ function initPromoMarquee(viewport) {
             track.addEventListener('click', blocker, true);
         }
 
+        schedule();
         setTimeout(() => { paused = false; }, 900);
     }
 
@@ -1571,14 +1598,21 @@ function initPromoMarquee(viewport) {
     viewport.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
     viewport.addEventListener('mouseleave', () => { if (!pointerActive) paused = false; });
 
-    if (!reduceMotion) raf = requestAnimationFrame(tick);
-    else apply();
+    const onResize = () => {
+        measure();
+        if (loopWidth) offset = offset % loopWidth;
+        render(false);
+        schedule();
+    };
+    window.addEventListener('resize', onResize);
 
-    const onUnload = () => cancelAnimationFrame(raf);
-    window.addEventListener('beforeunload', onUnload);
+    measure();
+    render(false);
+    schedule();
+
     viewport.__promoCleanup = () => {
-        cancelAnimationFrame(raf);
-        window.removeEventListener('beforeunload', onUnload);
+        clearInterval(interval);
+        window.removeEventListener('resize', onResize);
     };
 }
 
