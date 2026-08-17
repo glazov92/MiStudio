@@ -1811,7 +1811,13 @@ function initArrowRail(railId, trackId, cardSelector) {
     }
 
     function maxOffset() {
-        return Math.max(0, track.scrollWidth - viewport.clientWidth);
+        const trackBox = track.getBoundingClientRect();
+        const viewBox = viewport.getBoundingClientRect();
+        /* левый «въезд» трека во вьюпорт = его отступ от левого края
+           (учитывает padding вьюпорта, чтобы последняя карточка доезжала
+           до правого края целиком) */
+        const leftInset = viewBox.left - trackBox.left;
+        return Math.max(0, track.scrollWidth - leftInset - viewBox.width);
     }
 
     function updateButtons() {
