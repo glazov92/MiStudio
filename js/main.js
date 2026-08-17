@@ -1477,7 +1477,6 @@ function renderPromos() {
     wrap.innerHTML = `
         <div class="promo-marquee__track">
             ${pieces}
-            ${pieces}
         </div>`;
 
     initPromoMarquee(wrap);
@@ -1501,25 +1500,48 @@ function initPromoMarquee(viewport) {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
     /* Истинный период повтора ленты — расстояние от первой карточки первого
-       набора до первой карточки второго (scrollWidth/2 даёт ошибку на пару
-       пикселей из-за отступов → на стыке виден разрыв). */
+       набора до первой карточки второго. Наборов держим столько, чтобы трек
+       всегда перекрывал «период + ширину окна»: тогда зацикливание по модулю
+       бесшовно — каждая акция идёт по кругу один за другим, без пустот
+       справа и «перезапуска» анимации. */
+    const setLen = track.querySelectorAll('.promo-card').length;
+    if (setLen < 1) return;
+    const baseCards = Array.prototype.slice.call(track.querySelectorAll('.promo-card'));
+
     let period = 0;
+
+    function appendSet() {
+        baseCards.forEach(card => track.appendChild(card.cloneNode(true)));
+    }
 
     function measurePeriod() {
         const cards = track.querySelectorAll('.promo-card');
-        const n = Math.max(1, Math.round(cards.length / 2));
-        if (cards.length >= n + 1) {
+        if (cards.length >= setLen + 1) {
             const a = cards[0].getBoundingClientRect();
-            const b = cards[n].getBoundingClientRect();
+            const b = cards[setLen].getBoundingClientRect();
             period = (b.left - a.left) || 1;
         } else {
-            period = track.scrollWidth / 2 || 1;
+            period = (track.scrollWidth / setLen) || 1;
         }
     }
 
+    function ensureTapeWidth() {
+        const vw = viewport.clientWidth || document.documentElement.clientWidth;
+        while (track.querySelectorAll('.promo-card').length < setLen + 1) appendSet();
+        measurePeriod();
+        /* сколько наборов нужно, чтобы трек накрыл «период + ширину окна»:
+           считаем арифметически, без scrollWidth (который в некрупной разметке
+           может не расти и привести к бесконечному клонированию). */
+        const needed = Math.max(2, Math.ceil((period + vw + 20) / period) + 1);
+        const copies = track.querySelectorAll('.promo-card').length / setLen;
+        for (let i = Math.ceil(copies); i < needed; i++) appendSet();
+    }
+
     function apply() {
-        if (!period) measurePeriod();
-        if (!period) period = track.scrollWidth / 2 || 1;
+        if (!period) {
+            if (reduceMotion) period = (track.scrollWidth / setLen) || 1;
+            else ensureTapeWidth();
+        }
         offset = ((offset % period) + period) % period;
         track.style.transform = `translateX(${-offset}px)`;
     }
