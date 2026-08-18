@@ -1170,6 +1170,8 @@ function resetLeadForm() {
 async function submitLead(formData) {
     const payload = {
         ...formData,
+        _hp: '',
+        _ts: Date.now(),
         source: 'website',
         version: '1.0'
     };
@@ -1384,7 +1386,7 @@ function renderServiceCard(service) {
         `<div class="master-pill"><strong>${m.name}</strong><span>${m.desc}</span></div>`).join('') : '';
 
     const price = (Array.isArray(service.price) ? service.price : []).map((block, bi) => `
-        <details class="price-acc" ${bi === 0 ? 'open' : ''}>
+        <details class="price-acc">
             <summary class="price-acc__head">${block.section}</summary>
             <div class="price-acc__body">
                 ${block.items.map(it => `
@@ -1496,8 +1498,10 @@ function initPromoMarquee(viewport) {
     let startX = 0;
     let startOffset = 0;
     let moved = false;
+    let stoppedByUser = false;
     const speed = 0.45;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const isTouch = window.matchMedia('(hover: none)').matches;
 
     /* Истинный период повтора ленты — расстояние от первой карточки первого
        набора до первой карточки второго. Наборов держим столько, чтобы трек
@@ -1547,7 +1551,7 @@ function initPromoMarquee(viewport) {
     }
 
     function tick() {
-        if (!paused && !dragging && !reduceMotion) {
+        if (!paused && !dragging && !reduceMotion && !stoppedByUser) {
             offset += speed;
             apply();
         }
@@ -1570,6 +1574,7 @@ function initPromoMarquee(viewport) {
         if (!dragging && Math.abs(dx) > 8) {
             dragging = true;
             moved = true;
+            if (isTouch) stoppedByUser = true;
             viewport.classList.add('is-grabbing');
             try { viewport.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
         }
@@ -1596,7 +1601,7 @@ function initPromoMarquee(viewport) {
             track.addEventListener('click', blocker, true);
         }
 
-        setTimeout(() => { paused = false; }, 900);
+        setTimeout(() => { if (!stoppedByUser) paused = false; }, 900);
     }
 
     viewport.addEventListener('pointerup', endDrag);
@@ -1689,7 +1694,7 @@ function renderServicePopupBody(service) {
     }).join('');
 
     const price = (Array.isArray(service.price) ? service.price : []).map((block, bi) => `
-        <details class="price-sheet" ${bi === 0 ? 'open' : ''}>
+        <details class="price-sheet">
             <summary class="price-sheet__head">
                 <span data-ed-path="svc.${service.id}.price.${bi}.section">${block.section}</span>
                 <span class="price-sheet__count">${block.items.length}</span>
@@ -1810,11 +1815,26 @@ function initArrowRail(railId, trackId, cardSelector) {
         return card.getBoundingClientRect().width + gap;
     }
 
+    /* Центровка: padding-left трека сдвигает первую карточку так, чтобы при
+       offset = 0 её центр совпадал с центром вьюпорта.  Работает только на
+       мобильных (< 768px) — на десктопе карточки и так влезают или листаются
+       стрелками без центровки. */
+    function updateTrackPadding() {
+        if (viewport.clientWidth >= 768) {
+            track.style.paddingLeft = '';
+            track.style.paddingRight = '';
+            return;
+        }
+        const card = track.querySelector(cardSelector);
+        if (!card) return;
+        const cardW = card.getBoundingClientRect().width;
+        const padL = parseFloat(getComputedStyle(viewport).paddingLeft) || 0;
+        const clientW = viewport.clientWidth;
+        track.style.paddingLeft  = Math.max(0, Math.round(clientW / 2 - padL - cardW / 2)) + 'px';
+        track.style.paddingRight = Math.max(0, Math.round(clientW / 2 - cardW / 2)) + 'px';
+    }
+
     function maxOffset() {
-        /* Стабильно: не зависит от текущего translateX (getBoundingClientRect
-           включала бы transform и «зажимала» трек на середине). Левый паддинг
-           вьюпорта гарантирует, что последняя карточка доедет до правого края
-           целиком. */
         const padL = parseFloat(getComputedStyle(viewport).paddingLeft) || 0;
         return Math.max(0, track.scrollWidth - viewport.clientWidth + padL);
     }
@@ -1825,6 +1845,8 @@ function initArrowRail(railId, trackId, cardSelector) {
         nextBtn.disabled = offset >= max - 2;
         prevBtn.classList.toggle('is-disabled', prevBtn.disabled);
         nextBtn.classList.toggle('is-disabled', nextBtn.disabled);
+        rail.classList.toggle('is-at-start', offset <= 2);
+        rail.classList.toggle('is-at-end', offset >= max - 2);
     }
 
     function apply(instant) {
@@ -1878,7 +1900,10 @@ function initArrowRail(railId, trackId, cardSelector) {
             viewport.classList.remove('is-dragging');
             try { viewport.releasePointerCapture(pointerId); } catch (_) { /* ignore */ }
             const step = cardStep();
-            offset = Math.round(offset / step) * step;
+            const max = maxOffset();
+            let target = Math.round(offset / step) * step;
+            if (offset >= max - step / 2) target = max;
+            offset = Math.max(0, Math.min(target, max));
             apply(false);
 
             const blocker = ev => {
@@ -1893,7 +1918,10 @@ function initArrowRail(railId, trackId, cardSelector) {
         pointerId = null;
     }
 
-    const onResize = () => apply(true);
+    function onResize() {
+        updateTrackPadding();
+        apply(true);
+    }
 
     prevBtn.addEventListener('click', onPrev);
     nextBtn.addEventListener('click', onNext);
@@ -1902,6 +1930,7 @@ function initArrowRail(railId, trackId, cardSelector) {
     viewport.addEventListener('pointerup', onPointerUp);
     viewport.addEventListener('pointercancel', onPointerUp);
     window.addEventListener('resize', onResize);
+    updateTrackPadding();
     apply(true);
 
     rail.__arrowCleanup = () => {

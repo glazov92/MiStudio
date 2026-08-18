@@ -1261,6 +1261,7 @@ body.nav-open {
     width: min(72px, 12vw);
     z-index: 2;
     pointer-events: none;
+    transition: opacity 0.35s ease;
 }
 
 .services-rail::before {
@@ -1992,6 +1993,7 @@ body.nav-open {
     width: min(72px, 12vw);
     z-index: 2;
     pointer-events: none;
+    transition: opacity 0.35s ease;
 }
 
 .portfolio-rail::before {
@@ -2645,6 +2647,7 @@ body.nav-open {
     width: 100%;
     max-height: 90vh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 36px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.28);
     transform: translateY(20px);
@@ -2663,6 +2666,7 @@ body.nav-open {
     max-height: min(78vh, 720px);
     padding: 24px 28px 18px;
     overflow: hidden;
+    overscroll-behavior: contain;
     display: flex;
     flex-direction: column;
 }
@@ -2781,6 +2785,7 @@ body.nav-open {
     min-height: 0;
     flex: 1;
     padding-right: 6px;
+    overscroll-behavior: contain;
 }
 
 .master-card + .master-card {
@@ -2859,6 +2864,7 @@ body.nav-open {
     min-height: 0;
     flex: 1;
     padding-right: 6px;
+    overscroll-behavior: contain;
 }
 
 .price-sheet {
@@ -3853,6 +3859,8 @@ body.nav-open {
     .promo-card__tag {
         font-size: 9px;
         letter-spacing: 0.08em;
+        min-width: 0;
+        overflow-wrap: break-word;
     }
 
     .promo-card__title {
