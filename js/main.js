@@ -1912,12 +1912,14 @@ function initArrowRail(railId, trackId, cardSelector) {
             offset = Math.max(0, Math.min(target, max));
             apply(false);
 
-            const blocker = ev => {
-                ev.preventDefault();
-                ev.stopPropagation();
-                track.removeEventListener('click', blocker, true);
-            };
-            track.addEventListener('click', blocker, true);
+            if (Math.abs(offset - startOffset) > DRAG_THRESHOLD * 2) {
+                const blocker = ev => {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    track.removeEventListener('click', blocker, true);
+                };
+                track.addEventListener('click', blocker, true);
+            }
             setTimeout(() => { rail.dataset.dragged = '0'; }, 0);
         }
 
