@@ -1196,34 +1196,49 @@ async function submitLead(formData) {
     return { ok: true, dev: true };
 }
 
+/* --------------------------------------------------------------------------
+   Toast-уведомления
+   -------------------------------------------------------------------------- */
+
+let __toastTimer = null;
+function showToast(text, type) {
+    clearTimeout(__toastTimer);
+    let el = document.getElementById('app-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'app-toast';
+        el.className = 'toast';
+        el.setAttribute('role', 'alert');
+        document.body.appendChild(el);
+    }
+    el.textContent = text;
+    el.className = 'toast toast--' + (type || 'ok') + ' is-show';
+    __toastTimer = setTimeout(() => el.classList.remove('is-show'), 3500);
+}
+
 function onLeadSubmit(e) {
     e.preventDefault();
     const form = e.target;
-    const status = document.getElementById('lead-status');
     const submitBtn = form.querySelector('button[type="submit"]');
 
     if (leadSending) return;
 
     const hp = document.getElementById('lead-hp');
     if (hp && hp.value.trim() !== '') {
-        status.className = 'form__status is-show form__status--ok';
-        status.textContent = 'Спасибо! Заявка отправлена — мы свяжемся с вами.';
+        showToast('Спасибо! Заявка отправлена — мы свяжемся с вами.', 'ok');
         resetLeadForm();
         return;
     }
     if (Date.now() - spamGuard.createdMs < 2500) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Форма ещё загружается. Попробуйте ещё раз.';
+        showToast('Форма ещё загружается. Попробуйте ещё раз.', 'err');
         return;
     }
     if (Date.now() - spamGuard.lastSentMs < 30000) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Слишком много заявок подряд — подождите полминуты.';
+        showToast('Слишком много заявок подряд — подождите полминуты.', 'err');
         return;
     }
     if (getSessionLeadCount() >= 5) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Достигнут лимит заявок в этой сессии. Позвоните нам.';
+        showToast('Достигнут лимит заявок в этой сессии. Позвоните нам.', 'err');
         return;
     }
 
@@ -1234,38 +1249,32 @@ function onLeadSubmit(e) {
     const tgRaw = formatTelegramInput(document.getElementById('lead-telegram')?.value || '');
 
     if (!name) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Укажите имя.';
+        showToast('Укажите имя.', 'err');
         return;
     }
 
     if (!isValidPhone()) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Введите корректный номер телефона.';
+        showToast('Введите корректный номер телефона.', 'err');
         return;
     }
 
     if (emailRaw && !isValidEmail(emailRaw)) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Проверьте адрес почты или очистите поле.';
+        showToast('Проверьте адрес почты или очистите поле.', 'err');
         return;
     }
 
     if (tgRaw && !isValidTelegram(tgRaw)) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Проверьте Telegram (@username, от 5 символов) или очистите поле.';
+        showToast('Проверьте Telegram (@username, от 5 символов) или очистите поле.', 'err');
         return;
     }
 
     if (!leadFormState.services.length) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Выберите хотя бы одну услугу.';
+        showToast('Выберите хотя бы одну услугу.', 'err');
         return;
     }
 
     if (!leadFormState.dates.length) {
-        status.className = 'form__status is-show form__status--err';
-        status.textContent = 'Выберите хотя бы одну дату.';
+        showToast('Выберите хотя бы одну дату.', 'err');
         return;
     }
 
@@ -1288,8 +1297,7 @@ function onLeadSubmit(e) {
         comment
     };
 
-    status.className = 'form__status is-show form__status--ok';
-    status.textContent = 'Отправляем...';
+    showToast('Отправляем...', 'ok');
 
     leadSending = true;
     if (submitBtn) submitBtn.disabled = true;
@@ -1300,17 +1308,15 @@ function onLeadSubmit(e) {
         if (res.ok) {
             spamGuard.lastSentMs = Date.now();
             bumpSessionLeadCount();
-            status.className = 'form__status is-show form__status--ok';
-            status.textContent = res.dev
+            showToast(res.dev
                 ? 'Заявка сформирована (debug — вебхук не настроен).'
-                : 'Спасибо! Заявка отправлена — мы свяжемся с вами.';
+                : 'Спасибо! Заявка отправлена — мы свяжемся с вами.', 'ok');
             resetLeadForm();
         } else {
-            status.className = 'form__status is-show form__status--err';
             if (res.reason === 'rate' || res.reason === 'daily') {
-                status.textContent = 'На сервере перебор заявок. Попробуйте через несколько минут.';
+                showToast('На сервере перебор заявок. Попробуйте через несколько минут.', 'err');
             } else {
-                status.textContent = 'Не удалось отправить. Попробуйте ещё раз или позвоните нам.';
+                showToast('Не удалось отправить. Попробуйте ещё раз или позвоните нам.', 'err');
             }
         }
     });

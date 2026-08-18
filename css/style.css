@@ -3115,6 +3115,44 @@ body.nav-open {
     color: var(--muted);
 }
 
+/* Toast-уведомления */
+
+.toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(120%);
+    z-index: 10000;
+    max-width: min(420px, calc(100vw - 32px));
+    padding: 14px 22px;
+    border-radius: var(--radius);
+    font-size: 14px;
+    line-height: 1.45;
+    text-align: center;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform 0.35s ease, opacity 0.35s ease;
+}
+
+.toast.is-show {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.toast--ok {
+    background: #eef5ec;
+    color: #3d7a3d;
+    border: 1px solid #c5ddb8;
+}
+
+.toast--err {
+    background: #fbeaea;
+    color: #a33;
+    border: 1px solid #f0c4c4;
+}
+
 .form__status {
     font-size: 14px;
     padding: 10px 14px;
