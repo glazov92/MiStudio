@@ -1180,13 +1180,12 @@ async function submitLead(formData) {
         try {
             const res = await fetch(CONFIG.leadWebhookUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                redirect: 'manual'
             });
-            if (!res.ok) throw new Error('HTTP ' + res.status);
-            const j = await res.json().catch(() => null);
-            if (j && j.ok === false) return { ok: false, reason: j.error || 'server' };
-            return { ok: true };
+            if (res.type === 'opaqueredirect' || res.ok) {
+                return { ok: true };
+            }
         } catch (e) {
             console.error('submitLead:', e);
             return { ok: false, reason: 'network' };
