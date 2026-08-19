@@ -147,6 +147,7 @@ function renderHeader(activePage) {
 
     const phones = CONFIG.phonesDisplay.map((p, i) =>
         `<a class="header__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">
+            <span class="header__phone-label">Студия</span>
             <span class="header__phone-num" data-editable="text" data-editable-id="site_phone_${i}">${p}</span>
         </a>`).join('');
 
