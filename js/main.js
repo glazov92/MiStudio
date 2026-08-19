@@ -1312,6 +1312,7 @@ function onLeadSubmit(e) {
                 ? 'Заявка сформирована (debug — вебхук не настроен).'
                 : 'Спасибо! Заявка отправлена — мы свяжемся с вами.', 'ok');
             resetLeadForm();
+            closePopup();
         } else {
             if (res.reason === 'rate' || res.reason === 'daily') {
                 showToast('На сервере перебор заявок. Попробуйте через несколько минут.', 'err');
@@ -2066,7 +2067,90 @@ if ('scrollRestoration' in history) {
     history.scrollRestoration = 'manual';
 }
 
+/* --------------------------------------------------------------------------
+   SEO: Schema.org (JSON-LD) — строится динамически из getServices(),
+   чтобы правки админки (цены/названия/мастера) сразу попадали в разметку.
+   -------------------------------------------------------------------------- */
+
+function parseOfferPrice(raw) {
+    if (!raw) return null;
+    const t = String(raw).toLowerCase();
+    if (t.indexOf('бесплатно') !== -1) return { price: 0, text: raw };
+    const from = t.indexOf('от') !== -1;
+    const nums = String(raw).replace(/[^\d.,]/g, '').split(/[.,]/);
+    let v = parseFloat(nums.join('.'));
+    if (!Number.isFinite(v) || v <= 0) return null;
+    return from ? { price: v, text: raw, from: true } : { price: v, text: raw };
+}
+
+function buildJsonLd() {
+    const base = location.origin;
+    const phone = (CONFIG.phones && CONFIG.phones[0]) || '+79334304777';
+    const schema = [];
+
+    schema.push({
+        '@context': 'https://schema.org',
+        '@type': ['HairSalon', 'LocalBusiness'],
+        '@id': base + '/#business',
+        name: 'Mi Studio',
+        url: base + '/',
+        description: document.querySelector('meta[name="description"]')
+            ? document.querySelector('meta[name="description"]').content
+            : 'Студия красоты Mi Studio в Нижнем Новгороде',
+        telephone: phone,
+        address: {
+            '@type': 'PostalAddress',
+            addressLocality: 'Нижний Новгород',
+            streetAddress: 'Пятигорская улица, 14',
+            addressCountry: 'RU'
+        },
+        geo: { '@type': 'GeoCoordinates', latitude: 56.2839, longitude: 43.9834 },
+        openingHoursSpecification: [{
+            '@type': 'OpeningHoursSpecification',
+            dayOfWeek: ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'],
+            opens: '10:00',
+            closes: '21:00'
+        }],
+        image: base + '/img/main-img.jpg',
+        sameAs: [CONFIG.vkUrl, CONFIG.tgUrl].filter(Boolean)
+    });
+
+    getServices().forEach((svc, idx) => {
+        const offers = [];
+        (svc.price || []).forEach(sec => {
+            (sec.items || []).forEach(it => {
+                const p = parseOfferPrice(it.price);
+                if (!p) return;
+                offers.push({
+                    '@type': 'Offer',
+                    name: it.name + (sec.section ? ' (' + sec.section + ')' : ''),
+                    price: p.price,
+                    priceCurrency: 'RUB',
+                    priceValidUntil: new Date(new Date().getFullYear() + 1, 11, 31).toISOString().slice(0, 10)
+                });
+            });
+        });
+        schema.push({
+            '@context': 'https://schema.org',
+            '@type': 'Service',
+            serviceType: svc.title,
+            name: svc.title,
+            description: svc.shortDesc,
+            url: base + '/#' + svc.id,
+            provider: { '@id': base + '/#business' },
+            image: svc.images && svc.images[0] ? base + '/' + svc.images[0] : undefined,
+            offers: offers.length ? offers : undefined
+        });
+    });
+
+    const script = document.createElement('script');
+    script.type = 'application/ld+json';
+    script.textContent = JSON.stringify(schema);
+    document.head.appendChild(script);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    buildJsonLd();
     renderHeader(document.body.dataset.page || '');
     renderFooter();
     renderPopup();
