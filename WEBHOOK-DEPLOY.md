@@ -12,7 +12,7 @@
 | Replay-атака (старый POST) | Timestamp (`_ts` > 5 мин) | `error: expired` |
 | Спам-волнами | Rate limit 6/мин | `error: rate` |
 | Долгосрочный спам | 150 заявок/день (Properties) | `error: daily` |
-| Запросы с чужих доменов | Origin check (пока выкл.) | — |
+| Запросы с чужих доменов | Origin check (studiomi.ru + GitHub Pages) | `error: forbidden` |
 
 ---
 
@@ -26,12 +26,9 @@
 - Открой файл `Code.gs` (или `vk-webhook.gs`)
 - **Ctrl+A** → **Delete** → **Ctrl+V** (вставить весь код из `webhook/vk-webhook.gs`)
 
-### 3. Origin-проверка (пока НЕ включай)
-Блоки `checkOrigin` и `ALLOWED_DOMAINS` в `Code.gs` **оставь закомментированными**.
-Они будут раскомментированы после запуска сайта на основном домене.
-
-> На GitHub Pages (`glazov92.github.io`) браузер не всегда передаёт `Origin`,
-> и origin-проверка может ломать заявки. Включим, когда домен будет привязан.
+### 3. Origin-проверка
+Origin-проверка **уже включена** — блокирует запросы с `file://` и чужих доменов.
+`ALLOWED_DOMAINS` содержит `studiomi.ru` и `glazov92.github.io` (GitHub Pages для отладки).
 
 ### 4. Сохрани
 - **Ctrl+S**
