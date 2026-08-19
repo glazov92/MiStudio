@@ -9,10 +9,11 @@
    POST /content-sync.php                      -> { action:'restore', key, version }
                                                   — откатить к версии
 
-   Данные хранятся в data/editor-store.json (папка защищена .htaccess).
-   При каждом сохранении делается снапшот в data/versions/ (последние
-   MAX_VERSIONS штук, файлы не больше MAX_SNAPSHOT_BYTES). Перед откатом
-   текущее состояние тоже сохраняется как версия — откат всегда отменяем.
+   Данные хранятся в mistudio-data/editor-store.json — ВНЕ веб-корня
+   (FTP-корень = <user>/data/, сайт в www/studiomi.ru, store рядом — 
+   mistudio-data). nginx физически не отдаёт этот каталог (404).
+   При каждом сохранении делается снапшот в mistudio-data/versions/
+   (последние MAX_VERSIONS штук, файлы не больше MAX_SNAPSHOT_BYTES).
 
    Ключ записи CMS_KEY должен совпадать с EDITOR_CONFIG.serverSync.key
    в config.js. Это «дверь с защёлкой» (как и ?edit=КЛЮЧ), а не защита от
@@ -23,9 +24,11 @@ header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
 const CMS_KEY    = 'S9x9Veh0hnHB4liskfCujugz';
-const STORE_FILE = __DIR__ . '/data/editor-store.json';
-
-const VERSIONS_DIR      = __DIR__ . '/data/versions';
+/* Хранилище правок — за пределами веб-корня (nginx не отдаёт): FTP-корень
+   = <user-home>/data/, сайт лежит в www/studiomi.ru, а store — рядом (mistudio-data).
+   define() вместо const: dirname() нельзя использовать в константном выражении. */
+define('STORE_FILE', dirname(__DIR__, 2) . '/mistudio-data/editor-store.json');
+define('VERSIONS_DIR', dirname(__DIR__, 2) . '/mistudio-data/versions');
 const MAX_VERSIONS      = 15;
 const MAX_SNAPSHOT_BYTES = 1.5 * 1024 * 1024;  /* больше этого — снапшот не делаем */
 
