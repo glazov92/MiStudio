@@ -80,8 +80,8 @@ const SERVICES = [
             }
         ],
         images: ['img/kosmetologiya-i-makiyazh.jpg', 'img/sr-1.jpg', 'img/cta-modal.jpg'],
-        phone: '+79527715509',
-        phoneDisplay: '+7 (952) 771-55-09',
+        phone: '+79334304777',
+        phoneDisplay: '+7 (933) 430-47-77',
         vk: 'https://vk.ru/club239375190',
         tg: 'https://t.me/+O-PmXu8y27FkMDg6'
     },
@@ -120,8 +120,8 @@ const SERVICES = [
             }
         ],
         images: ['img/massazh.jpg', 'img/sr-5.jpg', 'img/pr-2.jpg'],
-        phone: '+79877481787',
-        phoneDisplay: '+7 (987) 748-17-87',
+        phone: '+79334304777',
+        phoneDisplay: '+7 (933) 430-47-77',
         vk: 'https://vk.ru/club239375190',
         tg: 'https://t.me/Marquise_ange'
     },
@@ -166,8 +166,8 @@ const SERVICES = [
             }
         ],
         images: ['img/makiyazh.jpg', 'img/sr-2.jpg', 'img/pr-3.jpg'],
-        phone: '+79527715509',
-        phoneDisplay: '+7 (952) 771-55-09',
+        phone: '+79334304777',
+        phoneDisplay: '+7 (933) 430-47-77',
         vk: 'https://vk.ru/club239375190',
         tg: 'https://t.me/+O-PmXu8y27FkMDg6'
     },
@@ -242,8 +242,8 @@ const SERVICES = [
             }
         ],
         images: ['img/resniczy.jpg', 'img/sr-4.jpg', 'img/massazh.jpg'],
-        phone: '+79510600847',
-        phoneDisplay: '+7 (951) 060-08-47',
+        phone: '+79334304777',
+        phoneDisplay: '+7 (933) 430-47-77',
         vk: 'https://vk.ru/marihkaglazova',
         tg: 'https://t.me/+O-PmXu8y27FkMDg6'
     }

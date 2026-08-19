@@ -7,8 +7,8 @@ const CONFIG = {
     // Заявки идут в беседу VK (webhook/vk-webhook.gs) + email-дубль на studiomi588@gmail.com.
     vkBotUrl: '',                               // задел, не используется
     dikidiUrl: 'https://dikidi.net/2049120?p=0.pi',
-    phones: ['+79334372727', '+79877481787'],
-    phonesDisplay: ['+7 (933) 437-27-27', '+7 (987) 748-17-87'],
+    phones: ['+79334304777'],
+    phonesDisplay: ['+7 (933) 430-47-77'],
     address: 'Н. Новгород, Пятигорская улица, 14',
     schedule: 'Ежедневно 10:00–21:00',
     vkUrl: 'https://vk.ru/club239375190',

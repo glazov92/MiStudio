@@ -147,7 +147,6 @@ function renderHeader(activePage) {
 
     const phones = CONFIG.phonesDisplay.map((p, i) =>
         `<a class="header__phone" href="tel:+${CONFIG.phones[i].replace(/[^0-9]/g, '')}">
-            <span class="header__phone-label">${i === 0 ? 'Студия' : 'Запись'}</span>
             <span class="header__phone-num" data-editable="text" data-editable-id="site_phone_${i}">${p}</span>
         </a>`).join('');
 
@@ -2025,7 +2024,6 @@ function initLightbox(wrap, items) {
 function renderContacts() {
     const address = document.getElementById('c-address');
     const phone1 = document.getElementById('c-phone1');
-    const phone2 = document.getElementById('c-phone2');
     const schedule = document.getElementById('c-schedule');
     const map = document.getElementById('c-map');
     const homeSocials = document.getElementById('home-socials');
@@ -2035,10 +2033,6 @@ function renderContacts() {
     if (phone1) {
         phone1.textContent = CONFIG.phonesDisplay[0];
         phone1.href = 'tel:+' + CONFIG.phones[0].replace(/[^0-9]/g, '');
-    }
-    if (phone2) {
-        phone2.textContent = CONFIG.phonesDisplay[1];
-        phone2.href = 'tel:+' + CONFIG.phones[1].replace(/[^0-9]/g, '');
     }
     if (map) map.src = CONFIG.mapEmbedUrl;
 
