@@ -402,7 +402,6 @@ function renderPopup() {
                     </div>
                     <div class="form__actions">
                         <button type="submit" class="btn btn--accent btn--block">Отправить заявку</button>
-                        <a class="btn btn--outline btn--block" href="${CONFIG.dikidiUrl}" target="_blank" rel="noopener">Онлайн-запись</a>
                     </div>
                     <div class="form__status" id="lead-status"></div>
                     <p class="form__note">Оставляя заявку, вы принимаете условия <a href="#" data-open-policy>пользовательского соглашения</a> и даёте согласие на обработку персональных данных.</p>
