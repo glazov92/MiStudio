@@ -22,7 +22,7 @@
 header('Content-Type: application/json; charset=utf-8');
 header('X-Content-Type-Options: nosniff');
 
-const CMS_KEY    = 'xlfQKw6pD1h1cHwfaVwaxaCq';
+const CMS_KEY    = 'S9x9Veh0hnHB4liskfCujugz';
 const STORE_FILE = __DIR__ . '/data/editor-store.json';
 
 const VERSIONS_DIR      = __DIR__ . '/data/versions';

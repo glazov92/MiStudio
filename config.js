@@ -3,7 +3,7 @@ const CONFIG = {
     apiVersion: 'v1',                           // позже станет 'v2'
     pocketbaseUrl: 'http://localhost:8090',     // PocketBase (dev); на проде — реальный URL
     usePocketbase: false,                       // true = тянуть услуги из PocketBase (v2.0)
-    leadWebhookUrl: 'https://script.google.com/macros/s/AKfycby4dzAKGTirf6NIA3UEzbrQmNnrKvJT61Cd34Mz0yTzn3lPOt0dIxjrE8TUQW63uYxVAw/exec', // заявки → беседа VK + email (GAS-вебхук, корпоративная почта)
+    leadWebhookUrl: 'https://script.google.com/macros/s/AKfycbwFA3DR1WdVG1C0sisUHKa8I0LJZvHT2OSn0JBrmwT1e-N0qvhWu2rHSnkw2xc3gMJiIQ/exec', // заявки → беседа VK + email (GAS-вебхук, корпоративная почта)
     // Заявки идут в беседу VK (webhook/vk-webhook.gs) + email-дубль на studiomi588@gmail.com.
     vkBotUrl: '',                               // задел, не используется
     dikidiUrl: 'https://dikidi.net/2049120?p=0.pi',
@@ -46,5 +46,5 @@ const EDITOR_CONFIG = {
         }
     }
     EDITOR_CONFIG.secretKey = editorUnlock('UlFoTlNZZHNyUndwUkNKU1NRTHM=');
-    EDITOR_CONFIG.serverSync.key = editorUnlock('cUNheGF3VmFmd0hjMWgxRHA2d0tRZmx4');
+    EDITOR_CONFIG.serverSync.key = editorUnlock('emd1anVDZmtzaWw0QkhuaDBoZVY5eDlT');
 })();
