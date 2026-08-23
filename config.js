@@ -7,6 +7,7 @@ const CONFIG = {
     // Заявки идут в беседу VK (webhook/vk-webhook.gs) + email-дубль на studiomi588@gmail.com.
     vkBotUrl: '',                               // задел, не используется
     dikidiUrl: 'https://dikidi.net/2049120?p=0.pi',
+    bookingUrl: '',                             // онлайн-запись YClients (когда появится ссылка — вписать сюда; Android-приложение подхватит без пересборки)
     phones: ['+79334304777'],
     phonesDisplay: ['+7 (933) 430-47-77'],
     address: 'Н. Новгород, Пятигорская улица, 14',

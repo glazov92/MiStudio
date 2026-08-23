@@ -88,11 +88,16 @@ MiStudio/
 - Telegram-вебхук (`webhook/telegram-webhook.gs`) остался как задел/резерв — не используется.
 - PocketBase коллекция `leads` — статусы: v1.0 `new`, в v2.0 добавятся `processing`, `pending_confirmation`, `confirmed`, `cancelled`.
 
-## Android-приложение (v1.0, WebView-обёртка, 23.08.2026)
-- Папка `android/` — нативная обёртка сайта (Java, без Kotlin/Compose): `MainActivity` грузит https://studiomi.ru/, pull-to-refresh, оффлайн-экран с «Повторить», кнопка «Назад» = history back, tel:/mailto:/geo/intent и внешние домены (vk/tg/dikidi) открываются вне приложения; yandex.ru (карта-виджет) — внутри. DOM storage включён (работает админ-CMS), `onShowFileChooser` — загрузка картинок в редакторе с телефона.
-- Сборка: GitHub Actions `.github/workflows/android-apk.yml` (JDK 17 temurin + Gradle 8.10.2 + AGP 8.7.3). Триггеры: push в main с изменениями `android/**`, теги `v*`, ручной запуск. Артефакт `MiStudio-apk` всегда; на теге `v*` дополнительно создаётся Release с подписанным APK.
+## Android-приложение (v1.1 «YClients-стиль», 24.08.2026)
+- Папка `android/` — гибридное приложение (Java + Material Components): один WebView с https://studiomi.ru/ + нативный каркас в стиле YClients: тулбар «Mi Studio» с кнопкой звонка, нижняя навигация из 5 табов (Главная / Услуги / Акции / Работы / Контакты), золотая кнопка «Записаться» над табами, системный сплэш с иконкой.
+- Табы = плавный скролл к секциям лендинга (`window.__appGo('top'|'promos'|'services'|'portfolio'|'contacts')`, инъекция после каждого onPageFinished). Scroll-spy внутри страницы сообщает текущую секцию через JS-мост `AppBridge.section(id)` — подсвечивает активный таб (петли нет: setSelectedItemId только при смене).
+- Маскировка сайта под приложение (только внутри APK): инъекция CSS прячет `header.header`, `footer.footer`, `#float-root`, `.mobile-cta`. Сам сайт не меняется.
+- Форма записи (BottomSheet): имя, телефон, услуга (Spinner), время, комментарий → нативный POST JSON на `CONFIG.leadWebhookUrl` (формат как submitLead сайта: `_hp,_ts,source:'android-app',version:'1.1'`) → беседа VK + email. Вторая кнопка «Онлайн-запись» открывает `CONFIG.bookingUrl` (YClients) либо фолбэк `CONFIG.dikidiUrl`.
+- Данные для приложения (телефон, вебхук, ссылки, названия услуг через getServices()) сайт пушит при загрузке через `AppBridge.config/services` — правки из админки подхватываются без пересборки APK. В config.js добавлено пустое поле `bookingUrl` под YClients (сайт его игнорирует).
+- Сохранено из v1.0: pull-to-refresh, оффлайн-экран, file chooser админки, внешние ссылки (tel/mailto/VK/TG/DiKiDi) наружу, yandex-карта внутри, DOM storage.
+- Сборка: GitHub Actions `.github/workflows/android-apk.yml` (JDK 17 temurin + Gradle 8.10.2 + AGP 8.7.3, material 1.12.0). Триггеры: push в main с изменениями `android/**`, теги `v*`, workflow_dispatch. Артефакт `MiStudio-apk`; на теге `v*` — Release с подписанным APK.
 - Подпись: `android/signing/mistudio.p12` (PKCS12, alias `mistudio`) закоммичен в приватный репозиторий — осознанный компромисс для воспроизводимых сборок. Пароль в `android/app/build.gradle`. НЕ публиковать репозиторий, пока ключ внутри; при утечке — перевыпустить ключ + поднять versionCode (обновления «поверх» потребуют переустановки).
-- Версии: `versionCode`/`versionName` в `android/app/build.gradle`; перед релизом инкрементить versionCode.
+- Версии: `versionCode`/`versionName` в `android/app/build.gradle`; перед релизом инкрементить versionCode. История: v1.0 (code 1) — чистая обёртка; v1.1 (code 2) — табы, маскировка, форма заявки.
 - minSdk 24, targetSdk 35. applicationId `ru.studiomi.app`. Иконки: adaptive (`mipmap-anydpi-v26` + vector `ic_fg.xml`, монограмма M) + legacy PNG (сгенерированы Python/Pillow).
 
 ## Не делать в v1.0
