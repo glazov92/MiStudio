@@ -10,14 +10,4 @@
     <string name="tab_promos">Акции</string>
     <string name="tab_works">Работы</string>
     <string name="tab_contacts">Контакты</string>
-    <string name="lead_title">Заявка менеджеру</string>
-    <string name="lead_name">Ваше имя</string>
-    <string name="lead_phone">Телефон</string>
-    <string name="lead_time">Желаемое время визита</string>
-    <string name="lead_comment">Комментарий (необязательно)</string>
-    <string name="lead_send">Отправить заявку</string>
-    <string name="online_book">Онлайн-запись</string>
-    <string name="sent_ok">Заявка отправлена! Мы свяжемся с вами.</string>
-    <string name="sent_fail">Не удалось отправить. Проверьте интернет и попробуйте ещё раз.</string>
-    <string name="fill_fields">Заполните имя и телефон</string>
 </resources>
