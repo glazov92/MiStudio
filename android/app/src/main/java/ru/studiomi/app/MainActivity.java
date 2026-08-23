@@ -307,9 +307,10 @@ public class MainActivity extends AppCompatActivity {
         synchronized (this) {
             items.addAll(serviceTitles);
         }
-        spService.setAdapter(new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, items));
-        spService.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spService.setAdapter(adapter);
 
         btnSend.setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
