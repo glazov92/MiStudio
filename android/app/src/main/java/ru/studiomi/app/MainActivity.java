@@ -43,6 +43,7 @@ public class MainActivity extends AppCompatActivity {
 
               window.__appGo=function(sec){
                 try{
+                  window.__appLockUntil=Date.now()+700;
                   if(!sec||sec==='top'){
                     window.scrollTo(0,0);
                     return;
@@ -63,9 +64,13 @@ public class MainActivity extends AppCompatActivity {
               if(!window.__appSpy){
                 window.__appSpy=true;
                 var ids=['promos','services','portfolio','contacts'];
-                var last=null;
+                var last=null,lastRun=0;
                 var pick=function(){
                   try{
+                    var now=Date.now();
+                    if(now<(window.__appLockUntil||0))return;
+                    if(now-lastRun<150)return;
+                    lastRun=now;
                     var y=window.innerHeight*0.4, cur='home';
                     for(var i=0;i<ids.length;i++){
                       var el=document.getElementById(ids[i]);
@@ -75,7 +80,7 @@ public class MainActivity extends AppCompatActivity {
                   }catch(e){}
                 };
                 var io=new IntersectionObserver(function(){ pick(); },
-                  {threshold:[0,0.25,0.5,0.75,1]});
+                  {threshold:[0,0.5,1]});
                 ids.forEach(function(id){
                   var el=document.getElementById(id);
                   if(el)io.observe(el);
@@ -101,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
     private View errorBox;
     private BottomNavigationView nav;
     private ValueCallback<Uri[]> fileCallback;
+    private boolean suppressNavSelection;
 
     private volatile String cfgPhone = FALLBACK_PHONE;
     private volatile String cfgHook = "";
@@ -198,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
                 web.evaluateJavascript("window.__appBook&&window.__appBook()", null));
 
         nav.setOnItemSelectedListener(item -> {
+            if (suppressNavSelection) return true;
             scrollToSection(item.getItemId());
             return true;
         });
@@ -301,7 +308,12 @@ public class MainActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 int menuId = menuIdForSection(id);
                 if (menuId != -1 && nav.getSelectedItemId() != menuId) {
-                    nav.setSelectedItemId(menuId);
+                    suppressNavSelection = true;
+                    try {
+                        nav.setSelectedItemId(menuId);
+                    } finally {
+                        suppressNavSelection = false;
+                    }
                 }
             });
         }
