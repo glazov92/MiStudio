@@ -88,6 +88,13 @@ MiStudio/
 - Telegram-вебхук (`webhook/telegram-webhook.gs`) остался как задел/резерв — не используется.
 - PocketBase коллекция `leads` — статусы: v1.0 `new`, в v2.0 добавятся `processing`, `pending_confirmation`, `confirmed`, `cancelled`.
 
+## Android-приложение (v1.0, WebView-обёртка, 23.08.2026)
+- Папка `android/` — нативная обёртка сайта (Java, без Kotlin/Compose): `MainActivity` грузит https://studiomi.ru/, pull-to-refresh, оффлайн-экран с «Повторить», кнопка «Назад» = history back, tel:/mailto:/geo/intent и внешние домены (vk/tg/dikidi) открываются вне приложения; yandex.ru (карта-виджет) — внутри. DOM storage включён (работает админ-CMS), `onShowFileChooser` — загрузка картинок в редакторе с телефона.
+- Сборка: GitHub Actions `.github/workflows/android-apk.yml` (JDK 17 temurin + Gradle 8.10.2 + AGP 8.7.3). Триггеры: push в main с изменениями `android/**`, теги `v*`, ручной запуск. Артефакт `MiStudio-apk` всегда; на теге `v*` дополнительно создаётся Release с подписанным APK.
+- Подпись: `android/signing/mistudio.p12` (PKCS12, alias `mistudio`) закоммичен в приватный репозиторий — осознанный компромисс для воспроизводимых сборок. Пароль в `android/app/build.gradle`. НЕ публиковать репозиторий, пока ключ внутри; при утечке — перевыпустить ключ + поднять versionCode (обновления «поверх» потребуют переустановки).
+- Версии: `versionCode`/`versionName` в `android/app/build.gradle`; перед релизом инкрементить versionCode.
+- minSdk 24, targetSdk 35. applicationId `ru.studiomi.app`. Иконки: adaptive (`mipmap-anydpi-v26` + vector `ic_fg.xml`, монограмма M) + legacy PNG (сгенерированы Python/Pillow).
+
 ## Не делать в v1.0
 FastAPI, SQLite, AI-агенты, планировщик, автоответчик, VK-интеграция, сложная обработка заявок.
 
