@@ -25,6 +25,8 @@
     <string name="lead_services_label">Услуги *</string>
     <string name="lead_pick_services">＋ Выбрать услуги</string>
     <string name="lead_promos_label">Акции</string>
+    <string name="promo_add">＋ Добавить в заявку</string>
+    <string name="promo_added">✓ В заявке — убрать</string>
     <string name="lead_dates_label">Желаемые даты *</string>
     <string name="lead_add_date">＋ Добавить дату</string>
     <string name="lead_comment_label">Комментарий</string>

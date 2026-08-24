@@ -12,13 +12,31 @@
         android:paddingTop="16dp"
         android:paddingBottom="24dp">
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/lead_title_site"
-            android:textColor="@color/text"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/lead_title_site"
+                android:textColor="@color/text"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/btn_close_lead"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:gravity="center"
+                android:text="✕"
+                android:textColor="#9E9A94"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"

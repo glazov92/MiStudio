@@ -61,4 +61,12 @@
         android:textColor="#B8975A"
         android:textSize="11sp"
         android:textStyle="italic" />
+
+    <Button
+        android:id="@+id/btn_add_promo"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:textStyle="bold" />
 </LinearLayout>

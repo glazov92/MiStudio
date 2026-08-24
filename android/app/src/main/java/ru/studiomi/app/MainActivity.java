@@ -119,6 +119,7 @@ public class MainActivity extends AppCompatActivity {
     private volatile String cfgVk = "";
     private volatile String cfgTg = "";
     private volatile List<JSONObject> servicesData = new ArrayList<>();
+    private List<JSONObject> promosCache = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -317,7 +318,16 @@ public class MainActivity extends AppCompatActivity {
             String sd = cat.optString("shortDesc");
             if (!sd.isEmpty()) {
                 TextView t = text(sd, 13f, BODY, false);
+                // полное описание: свёрнуто до 3 строк, тап раскрывает/сворачивает
                 t.setMaxLines(3);
+                t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                final boolean[] expanded = {false};
+                t.setOnClickListener(v -> {
+                    expanded[0] = !expanded[0];
+                    t.setMaxLines(expanded[0] ? Integer.MAX_VALUE : 3);
+                    t.setEllipsize(expanded[0] ? null
+                            : android.text.TextUtils.TruncateAt.END);
+                });
                 titles.addView(t);
             }
             TextView chev = text("▾", 18f, GOLD, true);
@@ -562,9 +572,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void showLeadForm(String preselectPromo) {
         if (leadDialog != null) return;
-        selServices.clear();
-        selPromos.clear();
-        selDates.clear();
+        // выбор сохраняется между открытиями; очищается после успешной отправки
         contactTab = 0;
 
         BottomSheetDialog dialog = new BottomSheetDialog(this);
@@ -597,9 +605,9 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        TextView tabPhone = content.findViewById(R.id.tab_phone);
-        TextView tabEmail = content.findViewById(R.id.tab_email);
+        TextView tabPhone = content.findViewById(R.id.tab_phone);        TextView tabEmail = content.findViewById(R.id.tab_email);
         TextView tabTg = content.findViewById(R.id.tab_tg);
+        content.findViewById(R.id.btn_close_lead).setOnClickListener(v -> dialog.dismiss());
         View panePhone = content.findViewById(R.id.pane_phone);
         View paneEmail = content.findViewById(R.id.et_email);
         View paneTg = content.findViewById(R.id.pane_tg);
@@ -792,19 +800,20 @@ public class MainActivity extends AppCompatActivity {
                     LinearLayout.LayoutParams.WRAP_CONTENT);
             lp.setMargins(0, dp(3), dp(6), dp(3));
             b.setLayoutParams(lp);
-            b.setOnClickListener(v -> {
-                int id = container.getId();
-                if (id == R.id.badges_services) {
-                    selServices.remove(item);
-                } else if (id == R.id.badges_promos) {
-                    selPromos.remove(item);
-                } else {
-                    selDates.remove(toDateKey(item));
-                }
-                renderBadges(container, id == R.id.badges_dates
-                        ? sortedDateLabels() : new ArrayList<>(itemsSetFor(container)));
-                syncPromosBlock();
-            });
+                b.setOnClickListener(v -> {
+                    int id = container.getId();
+                    if (id == R.id.badges_services) {
+                        selServices.remove(item);
+                    } else if (id == R.id.badges_promos) {
+                        selPromos.remove(item);
+                    } else {
+                        selDates.remove(toDateKey(item));
+                    }
+                    renderBadges(container, id == R.id.badges_dates
+                            ? sortedDateLabels() : new ArrayList<>(itemsSetFor(container)));
+                    syncPromosBlock();
+                    if (id == R.id.badges_promos) refreshPromosRow();
+                });
             row.addView(b);
             i++;
         }
@@ -911,6 +920,10 @@ public class MainActivity extends AppCompatActivity {
                 if (finalOk) {
                     Toast.makeText(MainActivity.this, R.string.sent_ok, Toast.LENGTH_LONG).show();
                     if (leadDialog != null) leadDialog.dismiss();
+                    selServices.clear();
+                    selPromos.clear();
+                    selDates.clear();
+                    refreshPromosRow();
                 } else {
                     Toast.makeText(MainActivity.this, R.string.sent_fail, Toast.LENGTH_LONG).show();
                 }
@@ -977,6 +990,7 @@ public class MainActivity extends AppCompatActivity {
                     final List<JSONObject> plist = new ArrayList<>();
                     for (int i = 0; i < promos.length(); i++)
                         plist.add(promos.optJSONObject(i));
+                    promosCache = plist;
                     runOnUiThread(() -> renderPromos(plist));
                 }
 
@@ -987,7 +1001,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderPromos(List<JSONObject> items) {
-        promosRow.removeAllViews();
         LayoutInflater inf = getLayoutInflater();
         for (JSONObject o : items) {
             View card = inf.inflate(R.layout.item_promo, promosRow, false);
@@ -999,8 +1012,54 @@ public class MainActivity extends AppCompatActivity {
             String n = o.optString("n");
             note.setText(n);
             note.setVisibility(n.isEmpty() ? View.GONE : View.VISIBLE);
-            card.setOnClickListener(v -> showLeadForm(o.optString("title")));
+
+            final String title = o.optString("title");
+            Button addBtn = card.findViewById(R.id.btn_add_promo);
+            stylePromoButton(addBtn, selPromos.contains(title));
+            addBtn.setOnClickListener(v -> {
+                boolean nowSelected;
+                if (selPromos.contains(title)) {
+                    selPromos.remove(title);
+                    nowSelected = false;
+                } else {
+                    selPromos.add(title);
+                    nowSelected = true;
+                }
+                stylePromoButton(addBtn, nowSelected);
+                syncLeadPromoBadges();
+            });
+
+            card.setOnClickListener(v -> showLeadForm(title));
             promosRow.addView(card);
+        }
+    }
+
+    private void stylePromoButton(Button b, boolean selected) {
+        if (selected) {
+            b.setText(R.string.promo_added);
+            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFD8D3CA));
+            b.setTextColor(0xFF6B675F);
+        } else {
+            b.setText(R.string.promo_add);
+            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(GOLD));
+            b.setTextColor(0xFFFFFFFF);
+        }
+    }
+
+    private void refreshPromosRow() {
+        promosRow.removeAllViews();
+        renderPromos(promosCache);
+    }
+
+    private void syncLeadPromoBadges() {
+        refreshPromosRow();
+        if (leadDialog != null) {
+            LinearLayout cont = leadDialog.findViewById(R.id.badges_promos);
+            if (cont != null) {
+                renderBadges(cont, new ArrayList<>(selPromos));
+                View block = leadDialog.findViewById(R.id.promos_block);
+                if (block != null && !selPromos.isEmpty()) block.setVisibility(View.VISIBLE);
+            }
         }
     }
 
