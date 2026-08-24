@@ -115,11 +115,13 @@ function wireServiceForm(root, mastersBox, priceBox) {
 
 function serviceFormHtml(s) {
     s = s || {};
+    const curImage = (s.images && s.images[0]) || s.image || '';
     return `
         ${editorField('Название услуги', s.title || '', { name: 'title' })}
         ${editorField('Описание', s.shortDesc || '', { name: 'shortDesc', type: 'textarea', rows: 3 })}
         ${editorField('Категория (по желанию)', s.category || '', { name: 'category' })}
-        ${editorField('Главная картинка (URL)', (s.images && s.images[0]) || s.image || '', { name: 'image', placeholder: 'img/... или https://...' })}
+        ${editorUploadFieldHtml(curImage)}
+        ${editorField('Главная картинка (URL)', '', { name: 'image', placeholder: 'img/... или https://... — или загрузите файл выше' })}
         ${editorField('Цена (строка для карточки, опционально)', s.priceText || '', { name: 'priceText', placeholder: 'от 1 500 ₽' })}
         <div class="ed-field">
             <div class="ed-field__label">Мастера</div>
@@ -153,6 +155,7 @@ function openServiceForm(existing) {
         if (mastersBox) renderMastersBox(mastersBox, service.masters);
         if (priceBox) renderPriceBox(priceBox, service.price);
         wireServiceForm(rootEl, mastersBox, priceBox);
+        const uploader = editorSetupUploadField(rootEl, { initialSrc: (service.images && service.images[0]) || service.image || '' });
         const form = rootEl.querySelector('[data-ed-form]');
         form.addEventListener('submit', e => {
             e.preventDefault();
@@ -161,7 +164,8 @@ function openServiceForm(existing) {
                 editorToast('Укажите название услуги.', true);
                 return;
             }
-            const images0 = data.image ? [data.image] : [];
+            const mainSrc = (uploader && uploader.getValue()) || (data.image || '').trim();
+            const images0 = mainSrc ? [mainSrc] : [];
             const list = editorServiceList();
             const existing = isNew ? null : (list.find(x => x.id === service.id) || service);
             const prevMasters = (existing && Array.isArray(existing.masters)) ? existing.masters : [];

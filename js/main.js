@@ -41,9 +41,16 @@ const spamGuard = {
 let leadSending = false;
 
 /* Frontend-редактор: источник данных. Пока в localStorage нет правок —
-   возвращаем оригинальные массивы из data.js. */
+   возвращаем оригинальные массивы из data.js.
+   Пустой список от редактора считаем «правки нет» — иначе случайный сброс
+   списков в админке оставит сайт без секций (см. инцидент 24.08.2026). */
+function editorHasItems(v) {
+    return Array.isArray(v) && v.length > 0;
+}
+
 function getPromos() {
-    return (window.MiEditorData && window.MiEditorData.promos) || PROMOS;
+    const src = window.MiEditorData && window.MiEditorData.promos;
+    return editorHasItems(src) ? src : PROMOS;
 }
 
 /* Ссылки соцсетей и сервисов (правятся в редакторе через «🔗 Ссылки») */
@@ -80,7 +87,8 @@ function applyServicePaths(copy, paths) {
 }
 
 function getServices() {
-    const src = (window.MiEditorData && window.MiEditorData.services) || SERVICES;
+    const raw = window.MiEditorData && window.MiEditorData.services;
+    const src = editorHasItems(raw) ? raw : SERVICES;
     const imgs = (window.MiEditorData && window.MiEditorData.images) || {};
     const paths = (window.MiEditorData && window.MiEditorData.paths) || {};
     return src.map(s => {
@@ -101,7 +109,8 @@ function getServices() {
 }
 
 function getPortfolioItems() {
-    const list = (window.MiEditorData && window.MiEditorData.portfolio) || PORTFOLIO_IMAGES;
+    const raw = window.MiEditorData && window.MiEditorData.portfolio;
+    const list = editorHasItems(raw) ? raw : PORTFOLIO_IMAGES;
     const imgs = (window.MiEditorData && window.MiEditorData.images) || {};
     return list.map((it, i) => {
         const item = typeof it === 'string' ? { id: 'p' + i, image: it } : it;
@@ -1506,7 +1515,6 @@ function initPromoMarquee(viewport) {
     let moved = false;
     let stoppedByUser = false;
     const speed = 0.45;
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const isTouch = window.matchMedia('(hover: none)').matches;
 
     /* Истинный период повтора ленты — расстояние от первой карточки первого
@@ -1533,6 +1541,14 @@ function initPromoMarquee(viewport) {
         } else {
             period = (track.scrollWidth / setLen) || 1;
         }
+        /* если замер сломался (например, до layout или контейнер скрыт) —
+           не даём периоду упасть к единице и бесконечно клонировать трек */
+        const vw = viewport.clientWidth || document.documentElement.clientWidth || 375;
+        const minPeriod = vw / 2;
+        if (!period || period < minPeriod) {
+            period = (track.scrollWidth / setLen) || vw;
+            if (period < minPeriod) period = minPeriod;
+        }
     }
 
     function ensureTapeWidth() {
@@ -1548,16 +1564,13 @@ function initPromoMarquee(viewport) {
     }
 
     function apply() {
-        if (!period) {
-            if (reduceMotion) period = (track.scrollWidth / setLen) || 1;
-            else ensureTapeWidth();
-        }
+        if (!period) ensureTapeWidth();
         offset = ((offset % period) + period) % period;
         track.style.transform = `translateX(${-offset}px)`;
     }
 
     function tick() {
-        if (!paused && !dragging && !reduceMotion && !stoppedByUser) {
+        if (!paused && !dragging && !stoppedByUser) {
             offset += speed;
             apply();
         }
@@ -1615,11 +1628,12 @@ function initPromoMarquee(viewport) {
     viewport.addEventListener('pointerleave', () => {
         if (!pointerActive) paused = false;
     });
-    viewport.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
-    viewport.addEventListener('mouseleave', () => { if (!pointerActive) paused = false; });
+    if (!isTouch) {
+        viewport.addEventListener('mouseenter', () => { if (!dragging) paused = true; });
+        viewport.addEventListener('mouseleave', () => { if (!pointerActive) paused = false; });
+    }
 
-    if (!reduceMotion) raf = requestAnimationFrame(tick);
-    else apply();
+    raf = requestAnimationFrame(tick);
 
     const onResize = () => { period = 0; apply(); };
     window.addEventListener('resize', onResize);
@@ -2162,6 +2176,12 @@ document.addEventListener('DOMContentLoaded', () => {
     bindPopup();
     initScrollbars();
     initHeroStage();
+
+    /* Динамические блоки отрисованы — применяем правки редактора и к ним
+       (телефоны в хедере/футере и т.п.), чтобы не было «мигания» */
+    if (typeof editorApplySaved === 'function') {
+        try { editorApplySaved(); } catch (e) { /* не критично */ }
+    }
 
     const hash = location.hash.slice(1);
     const sectionIds = ['services', 'about', 'portfolio', 'contacts'];

@@ -1155,16 +1155,10 @@ body.nav-open {
 
 @media (prefers-reduced-motion: reduce) {
     .promo-marquee__track {
-        flex-wrap: wrap;
-        width: 100%;
-        max-width: var(--container);
-        margin: 0 auto;
-        justify-content: center;
-        transform: none !important;
-    }
-
-    .promo-marquee__track .promo-card:nth-child(n+5) {
-        display: none;
+        flex-wrap: nowrap;
+        width: max-content;
+        margin: 0;
+        justify-content: flex-start;
     }
 }
 

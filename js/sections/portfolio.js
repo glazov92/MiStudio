@@ -6,10 +6,12 @@
 
 function portfolioFormHtml(p) {
     p = p || {};
+    const curImage = p.image || '';
     return `
         ${editorField('Название работы', p.title || '', { name: 'title' })}
         ${editorField('Описание', p.desc || '', { name: 'desc', type: 'textarea', rows: 3 })}
-        ${editorField('Изображение (URL)', p.image || '', { name: 'image', placeholder: 'img/... или https://...' })}
+        ${editorUploadFieldHtml(curImage)}
+        ${editorField('Изображение (URL)', '', { name: 'image', placeholder: 'img/... или https://... — или загрузите файл выше' })}
         ${editorField('Категория / тег', p.category || '', { name: 'category' })}
         ${editorField('Дата выполнения', p.date || '', { name: 'date', type: 'date' })}`;
 }
@@ -26,18 +28,22 @@ function openPortfolioForm(existing) {
             </div>
         </form>`, rootEl => {
         const form = rootEl.querySelector('[data-ed-form]');
+        const uploader = editorSetupUploadField(rootEl, { initialSrc: item.image || '' });
         form.addEventListener('submit', e => {
             e.preventDefault();
             const data = editorFormValues(rootEl);
-            if (!data.image) {
-                editorToast('Укажите URL изображения.', true);
+            const src = (uploader && uploader.getValue())
+                || (data.image || '').trim()
+                || (existing && existing.image) || '';
+            if (!src) {
+                editorToast('Загрузите файл с компьютера или укажите URL изображения.', true);
                 return;
             }
             const list = editorPortfolioList();
             const base = {
                 title: data.title || '',
                 desc: data.desc || '',
-                image: data.image,
+                image: src,
                 category: data.category || '',
                 date: data.date || ''
             };

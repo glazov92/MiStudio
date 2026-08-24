@@ -412,9 +412,7 @@ function refreshSnapshot($store) {
               . 'document.documentElement.className+=" mi-preload";'
               . 'var css=ids.map(function(id){return \'.mi-preload [data-editable-id="\'+id+\'"]\';}).join(",")+"{visibility:hidden}";'
               . 'var st=document.createElement("style");st.textContent=css;document.head.appendChild(st);})();</script>';
-        /* ВАЖНО: $head уже содержит открывающий маркер — не дублируем!
-           (двойной opener раньше раздувал файл и ломал парсинг снимка) */
-        $block = $head . '<!--/MI_SNAPSHOT-->';
+        $block = '<!--MI_SNAPSHOT-->' . $head . '<!--/MI_SNAPSHOT-->';
 
         /* Конец BODY: мгновенная подмена src/текстов из снимка + снятие класса */
         $apply = '<!--MI_APPLY--><script>(function(){'

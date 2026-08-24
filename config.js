@@ -28,7 +28,7 @@ const EDITOR_CONFIG = {
     storagePrefix: 'mistudio_editor_',
     serverSync: {
         enabled: true,               // сохранять правки на сервере (PHP, см. content-sync.php)
-        url: 'content-sync.php',     // относительный путь к скрипту на хостинге
+        url: 'content-sync2.php',     // относительный путь к скрипту на хостинге
         key: ''                      // ключ записи — совпадает с CMS_KEY в content-sync.php; заполняется ниже
     },
     sections: {
@@ -46,6 +46,6 @@ const EDITOR_CONFIG = {
             return '';
         }
     }
-    EDITOR_CONFIG.secretKey = editorUnlock('UlFoTlNZZHNyUndwUkNKU1NRTHM=');
-    EDITOR_CONFIG.serverSync.key = editorUnlock('emd1anVDZmtzaWw0QkhuaDBoZVY5eDlT');
+    EDITOR_CONFIG.secretKey = editorUnlock('UFNDdlBrSHQzNTZVbTRxQU5nR002RlpG');
+    EDITOR_CONFIG.serverSync.key = editorUnlock('UFNDdlBrSHQzNTZVbTRxQU5nR002RlpG');
 })();

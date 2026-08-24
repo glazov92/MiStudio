@@ -28,13 +28,39 @@ function editorLoadStore() {
     EDITOR_STORE.texts = editorLoadJSON('texts', {}) || {};
     EDITOR_STORE.images = editorLoadJSON('images', {}) || {};
     EDITOR_STORE.paths = editorLoadJSON('paths', {}) || {};
-    EDITOR_STORE.promos = editorLoadJSON('promos', null);
-    EDITOR_STORE.services = editorLoadJSON('services', null);
-    EDITOR_STORE.portfolio = editorLoadJSON('portfolio', null);
+    EDITOR_STORE.promos = editorNormalizeList(editorLoadJSON('promos', null));
+    EDITOR_STORE.services = editorNormalizeList(editorLoadJSON('services', null));
+    EDITOR_STORE.portfolio = editorNormalizeList(editorLoadJSON('portfolio', null));
     EDITOR_STORE.links = editorLoadJSON('links', null);
+    editorMergeSnapshot();
     if (!editorStorageSupported()) {
         editorToast('localStorage недоступен (режим инкогнито) — изменения не сохранятся.', true);
     }
+}
+
+/* Снимок из index.html (window.MI_SNAPSHOT, обновляется сервером при каждом
+   «Сохранить»). Применяем, если он не старее кэша в localStorage — тогда даже
+   первый заход устройства рендерит актуальный сайт с первого кадра. */
+function editorMergeSnapshot() {
+    const snap = window.MI_SNAPSHOT;
+    if (!snap || typeof snap !== 'object') return;
+    const snapTime = String(snap.synced_at || snap.snapshot_time || '');
+    const cached = editorCachedSyncedAt();
+    if (snapTime && cached && snapTime < cached) return;   /* кэш свежее снимка */
+    if (!snapTime && cached) return;
+
+    const maps = (a, b) => Object.assign({}, a || {}, b || {});
+    const asMap = v => (Array.isArray(v) ? {} : (v || {}));
+    const asList = v => editorNormalizeList(v);
+    EDITOR_STORE.texts     = maps(null, asMap(snap.editable_texts));
+    EDITOR_STORE.images    = maps(null, asMap(snap.editable_images));
+    EDITOR_STORE.paths     = maps(null, asMap(snap.service_paths));
+    EDITOR_STORE.links     = asMap(snap.links);
+    EDITOR_STORE.promos    = asList(snap.promotions);
+    EDITOR_STORE.services  = asList(snap.services);
+    EDITOR_STORE.portfolio = asList(snap.portfolio);
+    EDITOR_STORE.synced_at = snapTime || (EDITOR_STORE.synced_at || '');
+    editorPersistSilent();
 }
 
 /* --- Применение сохранённых правок к DOM (для всех посетителей браузера) */
@@ -84,13 +110,27 @@ function editorApplyServerData(server) {
         mergeMap('images', 'editable_images');
         mergeMap('paths', 'service_paths');
         mergeMap('links', 'links');
-        ['promotions', 'services', 'portfolio'].forEach(k => {
-            if (Array.isArray(server[k]) && JSON.stringify(server[k]) !== JSON.stringify(EDITOR_STORE[k])) {
-                EDITOR_STORE[k] = server[k];
+        /* Ключи сервера -> ключи стора: на сервере 'promotions', в сторе 'promos'.
+           Пустые списки игнорируются: [] никогда не затирает контент сайта. */
+        const listKeys = { promotions: 'promos', services: 'services', portfolio: 'portfolio' };
+        Object.keys(listKeys).forEach(sk => {
+            const storeKey = listKeys[sk];
+            const incoming = editorNormalizeList(server[sk]);
+            if (incoming && JSON.stringify(incoming) !== JSON.stringify(EDITOR_STORE[storeKey])) {
+                EDITOR_STORE[storeKey] = incoming;
                 changed = true;
             }
         });
+        if (server.synced_at && server.synced_at !== EDITOR_STORE.synced_at) {
+            EDITOR_STORE.synced_at = server.synced_at;
+            if (!changed) {
+                /* само состояние не поменялось, но время сервера обновляем,
+                   чтобы кэш корректно сравнивался со снапшотом */
+                editorPersistSilent();
+            }
+        }
         if (!changed) return;
+        editorPersistSilent();   /* кэш у посетителя: следующий визит без мигания */
         editorApplySaved();
         ['promotions', 'services', 'portfolio', 'links'].forEach(k => editorRerenderSection(k));
         if (editorModeActive()) editorToast('Правки загружены с сервера.');
@@ -369,12 +409,14 @@ function openImageEditor(entry) {
                 editorToast(`Файл больше ${Math.round(EDITOR_CONFIG.maxImageSize / 1024 / 1024)} МБ — выберите меньший.`, true);
                 return;
             }
-            editorDownscaleImage(file, dataUrl => {
-                if (!dataUrl) {
+            editorToast('Загружаю картинку на хост…');
+            editorUploadImageFile(file, (src, uploaded) => {
+                if (!src) {
                     editorToast('Не удалось прочитать изображение.', true);
                     return;
                 }
-                apply(dataUrl);
+                if (!uploaded) editorToast('Сервер недоступен — картинка сохранена локально.', true);
+                apply(src);
             });
         });
 
@@ -476,6 +518,123 @@ function editorImageRegistry() {
     return items;
 }
 
+/* --- Загрузка изображений с компьютера в формах менеджеров --------------- */
+
+/* Разметка блока «файл + предпросмотр». initialSrc — текущая картинка (если есть). */
+function editorUploadFieldHtml(initialSrc) {
+    const mb = Math.round((EDITOR_CONFIG.maxImageSize || 3 * 1024 * 1024) / 1024 / 1024);
+    return `
+        <div class="ed-field">
+            <span class="ed-field__label">Загрузить с компьютера (до ${mb} МБ)</span>
+            <input type="file" class="ed-file" accept="image/*" data-ed-upload>
+            <div class="ed-urlrow" data-ed-uploaded-row hidden>
+                <span class="ed-note">Файл загружен — не забудьте сохранить.</span>
+                <button type="button" class="ed-mini ed-mini--danger" data-ed-upload-clear>Убрать</button>
+            </div>
+        </div>
+        <div class="ed-imgpreview" data-ed-preview ${initialSrc ? '' : 'hidden'}>
+            <img src="${initialSrc ? editorEscapeHtml(initialSrc) : ''}" alt="Предпросмотр">
+        </div>`;
+}
+
+/* Логика блока: выбор файла → сжатие → предпросмотр; ручной ввод URL
+   отменяет загруженный файл («последнее действие выигрывает»).
+   Возвращает { getValue(), reset() }. */
+function editorSetupUploadField(rootEl, opts) {
+    opts = opts || {};
+    const fileInput = rootEl.querySelector('[data-ed-upload]');
+    if (!fileInput) return null;
+    const urlInput = rootEl.querySelector(opts.urlSelector || '[name="image"]');
+    const previewBox = rootEl.querySelector('[data-ed-preview]');
+    const previewImg = previewBox ? previewBox.querySelector('img') : null;
+    const doneRow = rootEl.querySelector('[data-ed-uploaded-row]');
+    let pending = null;
+
+    const showPreview = src => {
+        if (!previewBox || !previewImg) return;
+        if (src) {
+            previewImg.src = src;
+            previewBox.hidden = false;
+        } else {
+            previewImg.removeAttribute('src');
+            previewBox.hidden = true;
+        }
+    };
+    const setDoneRow = on => { if (doneRow) doneRow.hidden = !on; };
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        if (!file) return;
+        if (!file.type || !file.type.startsWith('image/')) {
+            editorToast('Можно загружать только изображения.', true);
+            fileInput.value = '';
+            return;
+        }
+        if (file.size > EDITOR_CONFIG.maxImageSize) {
+            editorToast(`Файл больше ${Math.round(EDITOR_CONFIG.maxImageSize / 1024 / 1024)} МБ — выберите меньший.`, true);
+            fileInput.value = '';
+            return;
+        }
+        editorToast('Загружаю картинку на хост…');
+        editorUploadImageFile(file, (src, uploaded) => {
+            if (!src) {
+                editorToast('Не удалось прочитать изображение.', true);
+                return;
+            }
+            if (!uploaded) editorToast('Сервер недоступен — картинка сохранена локально.', true);
+            pending = src;
+            if (urlInput) urlInput.value = '';
+            showPreview(src);
+            setDoneRow(true);
+            editorToast('Изображение готово — нажмите «Сохранить».');
+        });
+    });
+
+    if (urlInput) urlInput.addEventListener('input', () => {
+        if (!pending) return;
+        pending = null;
+        setDoneRow(false);
+        fileInput.value = '';
+    });
+
+    const clearBtn = rootEl.querySelector('[data-ed-upload-clear]');
+    if (clearBtn) clearBtn.addEventListener('click', () => {
+        pending = null;
+        fileInput.value = '';
+        setDoneRow(false);
+        showPreview(opts.initialSrc || '');
+        if (!opts.initialSrc && urlInput) urlInput.value = '';
+    });
+
+    return {
+        getValue: () => pending || '',
+        reset: () => { pending = null; fileInput.value = ''; setDoneRow(false); }
+    };
+}
+
+/* Сжатая картинка → файл на хосте (img/u/…). Возвращает URL; при недоступности
+   сервера (file://, оффлайн) — фолбэк на base64-датаURL как раньше.
+   cb(src, uploaded) — uploaded=true, если картинка ушла файлом на хост. */
+function editorUploadImageFile(file, cb) {
+    editorDownscaleImage(file, dataUrl => {
+        if (!dataUrl) { cb(null, false); return; }
+        const url = editorSyncUrl();
+        if (!url || location.protocol === 'file:') { cb(dataUrl, false); return; }
+        fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                action: 'upload_image',
+                key: (EDITOR_CONFIG.serverSync && EDITOR_CONFIG.serverSync.key) || '',
+                image_base64: dataUrl
+            })
+        }).then(r => r.json()).then(j => {
+            if (j && j.ok && j.url) cb(j.url, true);
+            else cb(dataUrl, false);
+        }).catch(() => cb(dataUrl, false));
+    });
+}
+
 function editorDownscaleImage(file, callback) {
     const reader = new FileReader();
     reader.onload = () => {
@@ -496,7 +655,14 @@ function editorDownscaleImage(file, callback) {
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
-            callback(canvas.toDataURL('image/jpeg', 0.82));
+            /* WebP легче JPEG на ~30%; если браузер умеет кодировать — берём его */
+            let type = 'image/jpeg';
+            try {
+                if (canvas.toDataURL('image/webp').indexOf('data:image/webp') === 0) {
+                    type = 'image/webp';
+                }
+            } catch (e) { /* остаёмся на jpeg */ }
+            callback(canvas.toDataURL(type, 0.82));
         };
         img.onerror = () => callback(null);
         img.src = reader.result;
@@ -524,6 +690,7 @@ function editorBuildPanel() {
         <div class="ed-panel__tools">
             <button type="button" data-ed-save title="Сохранить">💾 Сохранить</button>
             <button type="button" data-ed-history title="История версий на сервере (снапшоты правок)">🕘 История</button>
+            <button type="button" data-ed-cleanup title="Удалить неиспользуемые картинки (img/u)">🧹 Чистка</button>
             <button type="button" data-ed-export title="Скачать JSON">📤 Экспорт</button>
             <button type="button" data-ed-import title="Загрузить JSON">📥 Импорт</button>
             <button type="button" data-ed-reset title="Сбросить всё">🗑️ Сбросить</button>
@@ -562,6 +729,7 @@ function editorBuildPanel() {
         }
     });
     panel.querySelector('[data-ed-history]').addEventListener('click', openHistoryModal);
+    panel.querySelector('[data-ed-cleanup]').addEventListener('click', openCleanupModal);
     panel.querySelector('[data-ed-export]').addEventListener('click', editorExportData);
     panel.querySelector('[data-ed-import]').addEventListener('click', () => importFile.click());
     importFile.addEventListener('change', () => {
@@ -673,6 +841,66 @@ function openHistoryModal() {
                             editorToast('Версия от ' + time + ' восстановлена ✓');
                         });
                     });
+                });
+            });
+        });
+        void root;
+    });
+}
+
+/* --- 🧹 Чистка неиспользуемых картинок (img/u) ---------------------------- */
+
+function openCleanupModal() {
+    if (!editorSyncUrl()) {
+        editorToast('Чистка доступна только на сервере (content-sync.php).', true);
+        return;
+    }
+    editorToast('Собираю список картинок…');
+    editorSyncImagesInventory().then(inv => {
+        if (!inv || !Array.isArray(inv.files)) {
+            editorToast('Не удалось получить список картинок.', true);
+            return;
+        }
+        const files = inv.files;
+        const unused = files.filter(f => !f.current && !f.history);
+        const fmt = b => b > 1024 * 1024 ? (b / 1024 / 1024).toFixed(1) + ' МБ' : Math.max(1, Math.round(b / 1024)) + ' КБ';
+        const rows = files.map(f => {
+            const status = f.current ? '<span class="ed-clean__tag ed-clean__tag--cur">текущая</span>'
+                : f.history ? '<span class="ed-clean__tag">в истории</span>'
+                : '<span class="ed-clean__tag ed-clean__tag--free">не используется</span>';
+            return `
+            <div class="ed-item ed-item--row">
+                <img class="ed-item__thumb" src="${editorEscapeHtml(f.url)}" alt="" loading="lazy">
+                <span class="ed-item__id">${editorEscapeHtml(f.url.replace('img/u/', ''))}</span>
+                <span class="ed-item__sub">${fmt(Number(f.size) || 0)} · ${status}</span>
+            </div>`;
+        }).join('') || '<div class="ed-empty">Загруженных картинок пока нет.</div>';
+
+        const total = Number(inv.bytes_total) || 0;
+        const canClean = unused.length > 0;
+
+        const root = editorOpenModal(`Чистка картинок <span class="ed-modal__count">${files.length}</span>`, `
+            <div class="ed-list">${rows}</div>
+            <div class="ed-note">Всего: ${files.length} шт., ${fmt(total)}. Удалить можно только картинки, на которые не ссылается ни текущий сайт, ни история версий — откатам они не понадобятся. «Не используется»: ${unused.length} шт.</div>
+            <div class="ed-actions">
+                <button type="button" class="ed-btn ed-btn--primary" data-ed-cleanup-run ${canClean ? '' : 'disabled'}>Удалить неиспользуемые (${unused.length})</button>
+                <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Закрыть</button>
+            </div>`, rootEl => {
+            rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
+            const runBtn = rootEl.querySelector('[data-ed-cleanup-run]');
+            runBtn.addEventListener('click', () => {
+                if (!confirm(`Удалить ${unused.length} неиспользуемых картинок? Файлы, нужные текущему сайту или любой версии истории, останутся на месте.`)) return;
+                runBtn.disabled = true;
+                editorSyncCleanupUnused().then(res => {
+                    if (!res || !res.ok) {
+                        editorToast('Не удалось выполнить чистку.', true);
+                        runBtn.disabled = false;
+                        return;
+                    }
+                    const n = (res.deleted || []).length;
+                    const mb = ((Number(res.freed_bytes) || 0) / 1024 / 1024).toFixed(1);
+                    closeEditorModal();
+                    editorToast(n ? `Удалено картинок: ${n}, освобождено ${mb} МБ ✓` : 'Неиспользуемых картинок нет.');
                 });
             });
         });
@@ -821,6 +1049,11 @@ function editorRefreshServicePicker() {
 
 editorLoadStore();
 window.MiEditorData = EDITOR_STORE;
+
+/* Раннее применение правок к статическим элементам: скрипты стоят в конце
+   body, элементы выше уже распарсены, а первой отрисовки ещё не было —
+   картинки и тексты заменяются ДО показа, без «мигания». */
+try { editorApplySaved(); } catch (e) { /* не критично */ }
 
 document.addEventListener('DOMContentLoaded', () => {
     try {

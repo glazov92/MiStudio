@@ -490,6 +490,28 @@ body.editor-active [data-editable="image"]:focus-visible {
     color: #55503f;
 }
 
+/* --- Чистка картинок ------------------------------------------------------ */
+
+.ed-clean__tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #efece3;
+    color: #6f6b63;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.ed-clean__tag--cur {
+    background: #e4f0df;
+    color: #3d7a34;
+}
+
+.ed-clean__tag--free {
+    background: #f7e4e0;
+    color: #a04b3a;
+}
+
 /* --- Тосты ---------------------------------------------------------------- */
 
 #editor-toast {
