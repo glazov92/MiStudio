@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.LayoutInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.webkit.CookieManager;
@@ -15,21 +16,41 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String HOME_URL = "https://studiomi.ru/";
     private static final int FILE_CHOOSER_CODE = 101;
 
-    private static final String FALLBACK_PHONE = "+79334304777";
+    private static final String APP_VERSION = "2.0";
+
+    private static final String FALLBACK_PHONE_DISPLAY = "+7 (933) 430-47-77";
+    private static final String FALLBACK_DIKIDI = "https://dikidi.net/2049120?p=0.pi";
 
     private static final String INJECT_JS = """
             (function(){
@@ -41,93 +62,134 @@ public class MainActivity extends AppCompatActivity {
               var old=document.getElementById('app-mask'); if(old) old.remove();
               head.appendChild(st);
 
-              window.__appGo=function(sec){
+              window.__appInit=function(sec){
                 try{
-                  window.__appLockUntil=Date.now()+700;
-                  if(!sec||sec==='top'){
-                    window.scrollTo(0,0);
-                    return;
-                  }
                   var el=document.getElementById(sec);
-                  if(el) setTimeout(function(){ el.scrollIntoView(true); },60);
+                  if(el) el.scrollIntoView(true);
                 }catch(e){}
               };
 
-              window.__appBook=function(){
-                try{
-                  openPopup(document.getElementById('lead-popup'));
-                }catch(e){
-                  window.__appGo('contacts');
-                }
-              };
-
-              if(!window.__appSpy){
-                window.__appSpy=true;
-                var ids=['promos','services','portfolio','contacts'];
-                var last=null,lastRun=0;
-                var pick=function(){
-                  try{
-                    var now=Date.now();
-                    if(now<(window.__appLockUntil||0))return;
-                    if(now-lastRun<150)return;
-                    lastRun=now;
-                    var y=window.innerHeight*0.4, cur='home';
-                    for(var i=0;i<ids.length;i++){
-                      var el=document.getElementById(ids[i]);
-                      if(el&&el.getBoundingClientRect().top<=y)cur=ids[i];
-                    }
-                    if(cur!==last){ last=cur; AppBridge.section(cur); }
-                  }catch(e){}
-                };
-                var io=new IntersectionObserver(function(){ pick(); },
-                  {threshold:[0,0.5,1]});
-                ids.forEach(function(id){
-                  var el=document.getElementById(id);
-                  if(el)io.observe(el);
-                });
-                var hero=document.querySelector('.hero');
-                if(hero)io.observe(hero);
-                window.addEventListener('resize',pick);
-                setTimeout(pick,300);
-              }
-
               try{
                 AppBridge.config(JSON.stringify({
-                  phone:(typeof CONFIG!=='undefined'&&CONFIG.phones&&CONFIG.phones[0])||'',
+                  phones:(typeof CONFIG!=='undefined'&&CONFIG.phones)||[],
+                  schedule:(typeof CONFIG!=='undefined'&&CONFIG.schedule)||'',
+                  address:(typeof CONFIG!=='undefined'&&CONFIG.address)||'',
                   hook:(typeof CONFIG!=='undefined'&&CONFIG.leadWebhookUrl)||'',
                   diki:(typeof CONFIG!=='undefined'&&CONFIG.dikidiUrl)||'',
                   book:(typeof CONFIG!=='undefined'&&CONFIG.bookingUrl)||''
                 }));
               }catch(e){}
+              try{
+                AppBridge.services(JSON.stringify(getServices().map(function(s){return s.title;})));
+              }catch(e){}
+              try{
+                AppBridge.promos(JSON.stringify(getPromos().map(function(p){
+                  return {b:p.badge||'',t:p.tag||'',title:p.title||'',d:p.desc||'',n:p.note||''};
+                })));
+              }catch(e){}
             })();
             """;
 
-    private WebView web;
-    private View errorBox;
     private BottomNavigationView nav;
+    private View errorBox;
+    private View pageHome;
+    private FrameLayout pagesHolder;
     private ValueCallback<Uri[]> fileCallback;
     private boolean suppressNavSelection;
 
-    private volatile String cfgPhone = FALLBACK_PHONE;
+    private TextView homeSchedule;
+    private TextView homeAddress;
+    private LinearLayout promosRow;
+    private androidx.appcompat.widget.Toolbar toolbar;
+
+    private static class Page {
+        final String section;
+        final int navId;
+        final int titleRes;
+        WebView web;
+        boolean loadedOnce;
+        boolean ready;
+        Page(String section, int navId, int titleRes) {
+            this.section = section;
+            this.navId = navId;
+            this.titleRes = titleRes;
+        }
+    }
+
+    private Page pServices;
+    private Page pWorks;
+    private Page pContacts;
+    private Page activePage;
+
+    private volatile List<String> cfgPhones = new ArrayList<>();
     private volatile String cfgHook = "";
     private volatile String cfgDiki = "";
     private volatile String cfgBook = "";
+    private volatile List<String> serviceTitles = new ArrayList<>();
 
-    @SuppressLint("SetJavaScriptEnabled")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        web = findViewById(R.id.web);
-        errorBox = findViewById(R.id.error_box);
         nav = findViewById(R.id.nav);
+        errorBox = findViewById(R.id.error_box);
+        pageHome = findViewById(R.id.page_home);
+        pagesHolder = findViewById(R.id.pages_holder);
         Button retry = findViewById(R.id.btn_retry);
         Button btnBook = findViewById(R.id.btn_book);
-        androidx.appcompat.widget.Toolbar toolbar = findViewById(R.id.toolbar);
+        toolbar = findViewById(R.id.toolbar);
+        homeSchedule = findViewById(R.id.home_schedule);
+        homeAddress = findViewById(R.id.home_address);
+        promosRow = findViewById(R.id.promos_row);
 
-        toolbar.setOnMenuItemClickListener(this::onToolbarMenuItem);
+        pServices = new Page("services", R.id.nav_services, R.string.tab_services);
+        pWorks = new Page("portfolio", R.id.nav_works, R.string.tab_works);
+        pContacts = new Page("contacts", R.id.nav_contacts, R.string.tab_contacts);
 
+        retry.setOnClickListener(v -> {
+            errorBox.setVisibility(View.GONE);
+            if (activePage != null && activePage.web != null) {
+                activePage.ready = false;
+                activePage.loadedOnce = false;
+                activePage.web.loadUrl(HOME_URL);
+            }
+        });
+
+        btnBook.setOnClickListener(v -> showBookingSheet());
+
+        nav.setOnItemSelectedListener(item -> {
+            if (suppressNavSelection) return true;
+            if (item.getItemId() == R.id.action_call) {
+                showCallDialog();
+                return false;
+            }
+            showPage(item.getItemId());
+            return true;
+        });
+
+        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                WebView w = activePage == null ? null : activePage.web;
+                if (w != null && w.canGoBack()) {
+                    w.goBack();
+                } else {
+                    setEnabled(false);
+                    getOnBackPressedDispatcher().onBackPressed();
+                    setEnabled(true);
+                }
+            }
+        });
+
+        showPage(R.id.nav_home);
+    }
+
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    private void ensurePage(Page page) {
+        if (page.web != null) return;
+
+        WebView web = new WebView(this);
         WebSettings s = web.getSettings();
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
@@ -137,9 +199,7 @@ public class MainActivity extends AppCompatActivity {
         s.setSupportZoom(false);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW);
 
-        CookieManager cm = CookieManager.getInstance();
-        cm.setAcceptCookie(true);
-        cm.setAcceptThirdPartyCookies(web, true);
+        CookieManager.getInstance().setAcceptThirdPartyCookies(web, true);
 
         web.addJavascriptInterface(new Bridge(), "AppBridge");
 
@@ -171,11 +231,21 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 view.evaluateJavascript(INJECT_JS, null);
+                if (!page.ready) {
+                    view.evaluateJavascript(
+                            "window.__appInit&&window.__appInit('" + page.section + "')", null);
+                    view.postDelayed(() -> {
+                        page.ready = true;
+                        if (activePage == page) {
+                            page.web.setVisibility(View.VISIBLE);
+                        }
+                    }, 350);
+                }
             }
 
             @Override
             public void onReceivedError(WebView view, WebResourceRequest request, WebResourceError error) {
-                if (request.isForMainFrame()) showError();
+                if (request.isForMainFrame() && activePage == page) showError();
             }
         });
 
@@ -195,68 +265,50 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        retry.setOnClickListener(v -> {
-            errorBox.setVisibility(View.GONE);
-            web.reload();
-        });
+        page.web = web;
+        pagesHolder.addView(web, new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    }
 
-        btnBook.setOnClickListener(v ->
-                web.evaluateJavascript("window.__appBook&&window.__appBook()", null));
+    private void showPage(int navId) {
+        String title = getString(R.string.app_name);
+        Page target = null;
 
-        nav.setOnItemSelectedListener(item -> {
-            if (suppressNavSelection) return true;
-            scrollToSection(item.getItemId());
-            return true;
-        });
+        if (navId == R.id.nav_home) {
+            target = null;
+        } else if (navId == R.id.nav_services) target = pServices;
+        else if (navId == R.id.nav_works) target = pWorks;
+        else if (navId == R.id.nav_contacts) target = pContacts;
 
-        getOnBackPressedDispatcher().addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                if (web.canGoBack()) {
-                    web.goBack();
-                } else {
-                    setEnabled(false);
-                    getOnBackPressedDispatcher().onBackPressed();
-                    setEnabled(true);
-                }
+        if (target == null) {
+            if (activePage != null && activePage.web != null) {
+                activePage.web.setVisibility(View.GONE);
             }
-        });
-
-        if (savedInstanceState != null) {
-            web.restoreState(savedInstanceState);
+            activePage = null;
+            pageHome.setVisibility(View.VISIBLE);
         } else {
-            web.loadUrl(HOME_URL);
+            pageHome.setVisibility(View.GONE);
+            hideOtherPages(target);
+            ensurePage(target);
+            if (!target.loadedOnce) {
+                target.loadedOnce = true;
+                target.ready = false;
+                target.web.setVisibility(View.INVISIBLE);
+                target.web.loadUrl(HOME_URL);
+            } else {
+                target.web.setVisibility(View.VISIBLE);
+            }
+            title = getString(target.titleRes);
+            activePage = target;
         }
+        toolbar.setTitle(title);
+        errorBox.setVisibility(View.GONE);
     }
 
-    private boolean onToolbarMenuItem(MenuItem item) {
-        if (item.getItemId() == R.id.action_call) {
-            openExternal(Uri.parse("tel:" + normalizedPhone()));
-            return true;
-        }
-        return false;
-    }
-
-    private void scrollToSection(int itemId) {
-        String sec;
-        if (itemId == R.id.nav_home) sec = "top";
-        else if (itemId == R.id.nav_services) sec = "services";
-        else if (itemId == R.id.nav_promos) sec = "promos";
-        else if (itemId == R.id.nav_works) sec = "portfolio";
-        else if (itemId == R.id.nav_contacts) sec = "contacts";
-        else return;
-        web.evaluateJavascript("window.__appGo&&window.__appGo('" + sec + "')", null);
-    }
-
-    private int menuIdForSection(String sec) {
-        if (sec == null) return -1;
-        switch (sec) {
-            case "home": return R.id.nav_home;
-            case "promos": return R.id.nav_promos;
-            case "services": return R.id.nav_services;
-            case "portfolio": return R.id.nav_works;
-            case "contacts": return R.id.nav_contacts;
-            default: return -1;
+    private void hideOtherPages(Page except) {
+        Page[] all = {pServices, pWorks, pContacts};
+        for (Page p : all) {
+            if (p != except && p.web != null) p.web.setVisibility(View.GONE);
         }
     }
 
@@ -280,44 +332,209 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private String normalizedPhone() {
-        String digits = cfgPhone == null ? "" : cfgPhone.replaceAll("[^0-9]", "");
-        if (digits.isEmpty()) return FALLBACK_PHONE;
+    private String normalizedPhone(String raw) {
+        String digits = raw == null ? "" : raw.replaceAll("[^0-9]", "");
+        if (digits.isEmpty()) return "";
         if (digits.startsWith("8")) digits = "7" + digits.substring(1);
         if (!digits.startsWith("7")) digits = "7" + digits;
         return "+" + digits;
     }
+
+    private void showCallDialog() {
+        List<String> phones = new ArrayList<>(cfgPhones);
+        if (phones.isEmpty()) phones.add(FALLBACK_PHONE_DISPLAY);
+        String[] items = phones.toArray(new String[0]);
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.calling)
+                .setItems(items, (d, which) ->
+                        openExternal(Uri.parse("tel:" + normalizedPhone(items[which]))))
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+        revertNavSelection();
+    }
+
+    private void revertNavSelection() {
+        int backTo = activePage == null ? R.id.nav_home : activePage.navId;
+        if (nav.getSelectedItemId() != backTo) {
+            suppressNavSelection = true;
+            try {
+                nav.setSelectedItemId(backTo);
+            } finally {
+                suppressNavSelection = false;
+            }
+        }
+    }
+
+    // ---------- Запись ----------
+
+    private void showBookingSheet() {
+        BottomSheetDialog dialog = new BottomSheetDialog(this);
+        View content = getLayoutInflater().inflate(R.layout.sheet_booking, null, false);
+        dialog.setContentView(content);
+
+        EditText etName = content.findViewById(R.id.et_name);
+        EditText etPhone = content.findViewById(R.id.et_phone);
+        EditText etTime = content.findViewById(R.id.et_time);
+        EditText etComment = content.findViewById(R.id.et_comment);
+        Spinner spService = content.findViewById(R.id.sp_service);
+        Button btnSend = content.findViewById(R.id.btn_lead_send);
+        Button btnOnline = content.findViewById(R.id.btn_online);
+
+        List<String> items = new ArrayList<>();
+        items.add("Пока не знаю — нужна консультация");
+        synchronized (this) {
+            items.addAll(serviceTitles);
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
+                android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spService.setAdapter(adapter);
+
+        btnSend.setOnClickListener(v -> {
+            String name = etName.getText().toString().trim();
+            String phone = etPhone.getText().toString().trim();
+            if (name.isEmpty() || phone.isEmpty()) {
+                Toast.makeText(this, R.string.fill_fields, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            Object sel = spService.getSelectedItem();
+            String service = sel == null ? "" : sel.toString();
+            sendLead(dialog, name, phone, service,
+                    etTime.getText().toString().trim(),
+                    etComment.getText().toString().trim());
+        });
+
+        btnOnline.setOnClickListener(v -> {
+            String url = !cfgBook.isEmpty() ? cfgBook : cfgDiki;
+            if (!url.isEmpty()) openExternal(Uri.parse(url));
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void sendLead(BottomSheetDialog dialog, String name, String phone,
+                          String service, String time, String comment) {
+        if (cfgHook.isEmpty()) {
+            Toast.makeText(this, R.string.sent_fail, Toast.LENGTH_LONG).show();
+            return;
+        }
+        String hook = cfgHook;
+        Toast.makeText(this, "Отправляю…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            boolean ok;
+            try {
+                JSONObject payload = new JSONObject();
+                payload.put("name", name);
+                payload.put("phone", phone);
+                payload.put("service", service);
+                payload.put("visit_time", time);
+                payload.put("comment", comment);
+                payload.put("_hp", "");
+                payload.put("_ts", System.currentTimeMillis());
+                payload.put("source", "android-app");
+                payload.put("version", APP_VERSION);
+
+                HttpsURLConnection c =
+                        (HttpsURLConnection) new java.net.URL(hook).openConnection();
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type", "application/json;charset=utf-8");
+                c.setDoOutput(true);
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(15000);
+                try (OutputStream os = c.getOutputStream()) {
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                }
+                int code = c.getResponseCode();
+                c.disconnect();
+                ok = code >= 200 && code < 400;
+            } catch (Exception e) {
+                ok = false;
+            }
+            boolean finalOk = ok;
+            runOnUiThread(() -> {
+                if (finalOk) {
+                    Toast.makeText(this, R.string.sent_ok, Toast.LENGTH_LONG).show();
+                    dialog.dismiss();
+                } else {
+                    Toast.makeText(this, R.string.sent_fail, Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+
+    // ---------- JS-мост ----------
 
     private class Bridge {
         @android.webkit.JavascriptInterface
         public void config(String json) {
             try {
                 JSONObject o = new JSONObject(json);
-                String p = o.optString("phone", "");
-                if (!p.isEmpty()) cfgPhone = p;
+                JSONArray phones = o.optJSONArray("phones");
+                if (phones != null && phones.length() > 0) {
+                    List<String> list = new ArrayList<>();
+                    for (int i = 0; i < phones.length(); i++) list.add(phones.getString(i));
+                    cfgPhones = list;
+                }
+                String sched = o.optString("schedule", "");
+                String addr = o.optString("address", "");
                 cfgHook = o.optString("hook", "");
                 String d = o.optString("diki", "");
                 if (!d.isEmpty()) cfgDiki = d;
                 cfgBook = o.optString("book", "");
+                runOnUiThread(() -> {
+                    if (!sched.isEmpty()) homeSchedule.setText(sched);
+                    if (!addr.isEmpty()) homeAddress.setText(addr);
+                });
             } catch (Exception ignored) {
             }
         }
 
         @android.webkit.JavascriptInterface
-        public void section(String id) {
-            runOnUiThread(() -> {
-                int menuId = menuIdForSection(id);
-                if (menuId != -1 && nav.getSelectedItemId() != menuId) {
-                    suppressNavSelection = true;
-                    try {
-                        nav.setSelectedItemId(menuId);
-                    } finally {
-                        suppressNavSelection = false;
-                    }
+        public void services(String json) {
+            try {
+                JSONArray arr = new JSONArray(json);
+                List<String> list = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) list.add(arr.getString(i));
+                synchronized (MainActivity.this) {
+                    serviceTitles = list;
                 }
-            });
+            } catch (Exception ignored) {
+            }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void promos(String json) {
+            final List<JSONObject> list = new ArrayList<>();
+            try {
+                JSONArray arr = new JSONArray(json);
+                for (int i = 0; i < arr.length(); i++) list.add(arr.getJSONObject(i));
+            } catch (Exception ignored) {
+                return;
+            }
+            runOnUiThread(() -> renderPromos(list));
         }
     }
+
+    private void renderPromos(List<JSONObject> items) {
+        promosRow.removeAllViews();
+        LayoutInflater inf = getLayoutInflater();
+        for (JSONObject o : items) {
+            View card = inf.inflate(R.layout.item_promo, promosRow, false);
+            ((TextView) card.findViewById(R.id.promo_badge)).setText(o.optString("b"));
+            ((TextView) card.findViewById(R.id.promo_tag)).setText(o.optString("t"));
+            ((TextView) card.findViewById(R.id.promo_title)).setText(o.optString("title"));
+            ((TextView) card.findViewById(R.id.promo_desc)).setText(o.optString("d"));
+            TextView note = card.findViewById(R.id.promo_note);
+            String n = o.optString("n");
+            note.setText(n);
+            note.setVisibility(n.isEmpty() ? View.GONE : View.VISIBLE);
+            card.setOnClickListener(v -> showBookingSheet());
+            promosRow.addView(card);
+        }
+    }
+
+    // ---------- Состояние ----------
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -333,6 +550,5 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onSaveInstanceState(@NonNull Bundle outState) {
         super.onSaveInstanceState(outState);
-        web.saveState(outState);
     }
 }

@@ -12,18 +12,35 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/bg"
         app:title="@string/app_name"
-        app:titleTextColor="@color/gold"
-        app:menu="@menu/menu_toolbar" />
+        app:titleTextColor="@color/gold" />
 
     <FrameLayout
+        android:id="@+id/pages_holder"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
+        <include
+            android:id="@+id/page_home"
+            layout="@layout/page_home" />
+
         <WebView
-            android:id="@+id/web"
+            android:id="@+id/web_services"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <WebView
+            android:id="@+id/web_works"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+        <WebView
+            android:id="@+id/web_contacts"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/error_box"
