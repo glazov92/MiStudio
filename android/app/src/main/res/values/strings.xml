@@ -12,21 +12,9 @@
     <string name="home_tagline">Студия красоты · Нижний Новгород</string>
     <string name="fallback_schedule">Ежедневно 10:00–21:00</string>
     <string name="fallback_address">Н. Новгород, Пятигорская улица, 14</string>
-    <string name="home_about_title">О студии</string>
-    <string name="home_about_text">Уютная студия в центре города. Работаем на профессиональных материалах, бережём время гостей и подбираем уход индивидуально.</string>
     <string name="home_promos_title">Акции</string>
-    <string name="home_hint">Листайте карточки — и жмите «Записаться»</string>
-    <string name="lead_title">Заявка менеджеру</string>
-    <string name="lead_name">Ваше имя</string>
-    <string name="lead_phone">Телефон</string>
-    <string name="lead_time">Желаемое время визита</string>
-    <string name="lead_comment">Комментарий (необязательно)</string>
-    <string name="lead_send">Отправить заявку</string>
-    <string name="online_book">Онлайн-запись</string>
-    <string name="sent_ok">Заявка отправлена! Мы свяжемся с вами.</string>
-    <string name="sent_fail">Не удалось отправить. Проверьте интернет и попробуйте ещё раз.</string>
-    <string name="fill_fields">Заполните имя и телефон</string>
     <string name="calling">Выберите номер</string>
+
     <string name="lead_title_site">Запись на визит</string>
     <string name="lead_subtitle">Оставьте контакты — мы свяжемся и подтвердим запись</string>
     <string name="lead_name">Ваше имя</string>
@@ -50,13 +38,11 @@
     <string name="err_tg">Проверьте Telegram (@username, от 5 символов) или очистите поле.</string>
     <string name="err_services">Выберите хотя бы одну услугу.</string>
     <string name="err_dates">Укажите желаемые даты.</string>
+    <string name="sent_ok">Заявка отправлена! Мы свяжемся с вами.</string>
+    <string name="sent_fail">Не удалось отправить. Проверьте интернет и попробуйте ещё раз.</string>
+
     <string name="refresh">Обновить</string>
     <string name="net_banner">Нет сети — проверьте интернет и нажмите ⟳ вверху</string>
-    <string name="services_title">Наши услуги</string>
-    <string name="services_hint">Нажмите на раздел, чтобы раскрыть цены</string>
-    <string name="works_title">Работы мастеров</string>
-    <string name="works_hint">Нажмите на фото, чтобы открыть</string>
-    <string name="contacts_title">Контакты</string>
     <string name="masters_label">Мастера</string>
     <string name="online_booking">Онлайн-запись</string>
     <string name="open_map">Показать на Яндекс.Карте</string>
