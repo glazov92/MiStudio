@@ -611,8 +611,28 @@ public class MainActivity extends AppCompatActivity {
 
         View bs = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bs != null) {
-            com.google.android.material.bottomsheet.BottomSheetBehavior.from(bs)
-                    .setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
+            com.google.android.material.bottomsheet.BottomSheetBehavior<View> bh =
+                    com.google.android.material.bottomsheet.BottomSheetBehavior.from(bs);
+            // свайп вниз не закрывает форму: шторка жёстко зафиксирована раскрытой,
+            // контент листается только внутри сайта; закрытие — ✕ или «Назад»
+            bh.setHideable(false);
+            bh.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
+            final com.google.android.material.bottomsheet.BottomSheetBehavior<View> fbh = bh;
+            bh.addBottomSheetCallback(
+                    new com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
+                @Override
+                public void onStateChanged(@NonNull View sheet, int newState) {
+                    if (newState != com.google.android.material.bottomsheet
+                            .BottomSheetBehavior.STATE_EXPANDED) {
+                        fbh.setState(com.google.android.material.bottomsheet
+                                .BottomSheetBehavior.STATE_EXPANDED);
+                    }
+                }
+
+                @Override
+                public void onSlide(@NonNull View sheet, float slideOffset) {
+                }
+            });
         }
         wv.loadUrl(HOME_URL);
     }
