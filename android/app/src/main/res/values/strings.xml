@@ -27,4 +27,14 @@
     <string name="sent_fail">Не удалось отправить. Проверьте интернет и попробуйте ещё раз.</string>
     <string name="fill_fields">Заполните имя и телефон</string>
     <string name="calling">Выберите номер</string>
+    <string name="refresh">Обновить</string>
+    <string name="net_banner">Нет сети — проверьте интернет и нажмите ⟳ вверху</string>
+    <string name="services_title">Наши услуги</string>
+    <string name="services_hint">Нажмите на раздел, чтобы раскрыть цены</string>
+    <string name="works_title">Работы мастеров</string>
+    <string name="works_hint">Нажмите на фото, чтобы открыть</string>
+    <string name="contacts_title">Контакты</string>
+    <string name="masters_label">Мастера</string>
+    <string name="online_booking">Онлайн-запись</string>
+    <string name="open_map">Показать на Яндекс.Карте</string>
 </resources>

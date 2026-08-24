@@ -1,92 +1,112 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg"
-    android:orientation="vertical">
+    android:background="@color/bg">
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/toolbar"
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/bg"
-        app:title="@string/app_name"
-        app:titleTextColor="@color/gold" />
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <androidx.appcompat.widget.Toolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/bg"
+            app:title="@string/app_name"
+            app:titleTextColor="@color/gold"
+            app:menu="@menu/menu_toolbar" />
+
+        <TextView
+            android:id="@+id/net_banner"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#F3E3C3"
+            android:gravity="center"
+            android:paddingTop="6dp"
+            android:paddingBottom="6dp"
+            android:text="@string/net_banner"
+            android:textColor="#7A5C1E"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
+        <FrameLayout
+            android:id="@+id/pages_holder"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <include
+                android:id="@+id/page_home"
+                layout="@layout/page_home" />
+
+            <include
+                android:id="@+id/page_services"
+                layout="@layout/page_services"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/page_works"
+                layout="@layout/page_works"
+                android:visibility="gone" />
+
+            <include
+                android:id="@+id/page_contacts"
+                layout="@layout/page_contacts"
+                android:visibility="gone" />
+        </FrameLayout>
+
+        <Button
+            android:id="@+id/btn_book"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:layout_marginTop="6dp"
+            android:backgroundTint="@color/gold"
+            android:text="@string/book"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <com.google.android.material.bottomnavigation.BottomNavigationView
+            android:id="@+id/nav"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/bg"
+            app:labelVisibilityMode="labeled"
+            app:itemIconTint="@color/nav_item"
+            app:itemTextColor="@color/nav_item"
+            app:menu="@menu/bottom_nav" />
+    </LinearLayout>
 
     <FrameLayout
-        android:id="@+id/pages_holder"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
-
-        <include
-            android:id="@+id/page_home"
-            layout="@layout/page_home" />
-
-        <WebView
-            android:id="@+id/web_services"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
-        <WebView
-            android:id="@+id/web_works"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
-        <WebView
-            android:id="@+id/web_contacts"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
-
-        <LinearLayout
-            android:id="@+id/error_box"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/bg"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/offline"
-                android:textColor="@color/text"
-                android:textSize="16sp" />
-
-            <Button
-                android:id="@+id/btn_retry"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:text="@string/retry" />
-        </LinearLayout>
-    </FrameLayout>
-
-    <Button
-        android:id="@+id/btn_book"
-        android:layout_width="match_parent"
-        android:layout_height="52dp"
-        android:layout_marginStart="16dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginTop="6dp"
-        android:backgroundTint="@color/gold"
-        android:text="@string/book"
-        android:textColor="#FFFFFF"
-        android:textSize="16sp"
-        android:textStyle="bold" />
-
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/nav"
-        android:layout_width="match_parent"
+        android:id="@+id/call_wrap"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:background="@color/bg"
-        app:labelVisibilityMode="labeled"
-        app:itemIconTint="@color/nav_item"
-        app:itemTextColor="@color/nav_item"
-        app:menu="@menu/bottom_nav" />
-</LinearLayout>
+        android:layout_gravity="bottom|center_horizontal"
+        android:clipChildren="false"
+        android:elevation="12dp">
+
+        <ru.studiomi.app.PulseView
+            android:id="@+id/pulse"
+            android:layout_width="170dp"
+            android:layout_height="170dp"
+            android:layout_gravity="center" />
+
+        <ImageButton
+            android:id="@+id/btn_call"
+            android:layout_width="68dp"
+            android:layout_height="68dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_call_circle"
+            android:contentDescription="@string/call"
+            android:elevation="4dp"
+            android:padding="18dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_call_white"
+            app:tint="#FFFFFF" />
+    </FrameLayout>
+</FrameLayout>

@@ -9,10 +9,6 @@
         android:icon="@drawable/ic_nav_services"
         android:title="@string/tab_services" />
     <item
-        android:id="@+id/action_call"
-        android:icon="@drawable/ic_call"
-        android:title="@string/call" />
-    <item
         android:id="@+id/nav_works"
         android:icon="@drawable/ic_nav_works"
         android:title="@string/tab_works" />
