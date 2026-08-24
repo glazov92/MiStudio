@@ -33,8 +33,12 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -602,6 +606,7 @@ public class MainActivity extends AppCompatActivity {
         EditText etPhone = content.findViewById(R.id.et_phone);
         EditText etEmail = content.findViewById(R.id.et_email);
         EditText etTg = content.findViewById(R.id.et_tg);
+        EditText etName = content.findViewById(R.id.et_name);
         EditText etComment = content.findViewById(R.id.et_comment);
         LinearLayout badgesServices = content.findViewById(R.id.badges_services);
         LinearLayout badgesPromos = content.findViewById(R.id.badges_promos);
