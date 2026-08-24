@@ -82,31 +82,29 @@
             app:menu="@menu/bottom_nav" />
     </LinearLayout>
 
+    <ru.studiomi.app.PulseView
+        android:id="@+id/pulse"
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:elevation="11dp" />
+
     <FrameLayout
         android:id="@+id/call_wrap"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="64dp"
+        android:layout_height="64dp"
         android:layout_gravity="bottom|center_horizontal"
-        android:clipChildren="false"
         android:elevation="12dp">
-
-        <ru.studiomi.app.PulseView
-            android:id="@+id/pulse"
-            android:layout_width="170dp"
-            android:layout_height="170dp"
-            android:layout_gravity="center" />
 
         <ImageButton
             android:id="@+id/btn_call"
-            android:layout_width="68dp"
-            android:layout_height="68dp"
-            android:layout_gravity="center"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:background="@drawable/bg_call_circle"
             android:contentDescription="@string/call"
             android:elevation="4dp"
-            android:padding="18dp"
+            android:padding="17dp"
             android:scaleType="fitCenter"
-            android:src="@drawable/ic_call_white"
-            app:tint="#FFFFFF" />
+            android:src="@drawable/ic_call_white" />
     </FrameLayout>
 </FrameLayout>

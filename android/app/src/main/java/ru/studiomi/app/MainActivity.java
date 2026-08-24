@@ -57,6 +57,23 @@ public class MainActivity extends AppCompatActivity {
     private static final int PAD16 = 16;
     private static final int PAD12 = 12;
 
+    private static final String BOOKING_JS = """
+            (function(){
+              var st=document.createElement('style');
+              st.textContent='header.header,footer.footer,#float-root,.mobile-cta,.section,.hero{display:none!important}'
+                +'body{background:#FAF9F6!important}';
+              document.head.appendChild(st);
+              setTimeout(function(){
+                try{ openPopup(document.getElementById('lead-popup')); }catch(e){}
+              },700);
+              document.addEventListener('click',function(e){
+                if(e.target&&e.target.closest&&e.target.closest('[data-close-popup]')){
+                  try{ AppBridge.closeLead(); }catch(err){}
+                }
+              },true);
+            })();
+            """;
+
     private static final String DATA_JS = """
             (function(){
               var push=function(obj){ try{ AppBridge.data(JSON.stringify(obj)); }catch(e){} };
@@ -80,6 +97,14 @@ public class MainActivity extends AppCompatActivity {
               try{ cfg.works=getPortfolioItems().map(function(w){
                     return {id:w.id||'',image:w.image||''};
               }); }catch(e){ cfg.works=[]; }
+              try{
+                var hs=['.hero__plane--front img','.hero__plane--mid img','.hero__plane--back img'];
+                cfg.heroImg='';
+                for(var i=0;i<hs.length;i++){
+                  var el=document.querySelector(hs[i]);
+                  if(el&&el.getAttribute('src')){cfg.heroImg=el.getAttribute('src');break;}
+                }
+              }catch(e){}
               push(cfg);
             })();
             """;
@@ -88,6 +113,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView netBanner;
     private TextView homeSchedule;
     private TextView homeAddress;
+    private ImageView homePhoto;
     private LinearLayout promosRow;
     private LinearLayout svcList;
     private LinearLayout worksGrid;
@@ -122,13 +148,14 @@ public class MainActivity extends AppCompatActivity {
         toolbar = findViewById(R.id.toolbar);
         homeSchedule = findViewById(R.id.home_schedule);
         homeAddress = findViewById(R.id.home_address);
+        homePhoto = findViewById(R.id.home_photo);
         promosRow = findViewById(R.id.promos_row);
         svcList = findViewById(R.id.svc_list);
         worksGrid = findViewById(R.id.works_grid);
         contactsList = findViewById(R.id.contacts_list);
 
         Button btnBook = findViewById(R.id.btn_book);
-        btnBook.setOnClickListener(v -> showBookingSheet());
+        btnBook.setOnClickListener(v -> showSiteBooking());
 
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
@@ -152,8 +179,14 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void positionCallButton() {
+        View pulse = findViewById(R.id.pulse);
         View callWrap = findViewById(R.id.call_wrap);
-        Runnable place = () -> callWrap.setTranslationY(-(nav.getHeight() / 2f));
+        Runnable place = () -> {
+            float navH = nav.getHeight();
+            // центр любой bottom-гравитации вьюхи = центр таб-бара
+            pulse.setTranslationY((pulse.getHeight() - navH) / 2f);
+            callWrap.setTranslationY((callWrap.getHeight() - navH) / 2f);
+        };
         nav.post(place);
         nav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or2, ob) -> place.run());
     }
@@ -318,6 +351,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void buildServiceBody(JSONObject cat, LinearLayout body) {
+        JSONArray masters = cat.optJSONArray("masters");
+        if (masters != null && masters.length() > 0) {
+            TextView mh = text(getString(R.string.masters_label), 13f, 0xFFB8975A, true);
+            mh.setAllCaps(true);
+            LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            mlp.bottomMargin = dp(6);
+            body.addView(mh, mlp);
+
+            for (int k = 0; k < masters.length(); k++) {
+                JSONObject m = masters.optJSONObject(k);
+                if (m == null) continue;
+                LinearLayout row = new LinearLayout(this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
+
+                ImageView photo = new ImageView(this);
+                int sz = dp(52);
+                LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(sz, sz);
+                plp.rightMargin = dp(PAD12);
+                photo.setLayoutParams(plp);
+                photo.setBackgroundResource(R.drawable.bg_img_ph);
+                photo.setClipToOutline(true);
+                MiniImg.load(photo, abs(m.optString("photo")));
+                row.addView(photo);
+
+                LinearLayout info = new LinearLayout(this);
+                info.setOrientation(LinearLayout.VERTICAL);
+                info.setLayoutParams(new LinearLayout.LayoutParams(0,
+                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+                info.addView(text(m.optString("name"), 14f, 0xFF1A1A1A, true));
+                String md = m.optString("desc");
+                if (!md.isEmpty()) info.addView(text(md, 11f, 0xFF9E9A94, false));
+                row.addView(info);
+                body.addView(row);
+            }
+        }
         JSONArray price = cat.optJSONArray("price");
         if (price != null) {
             for (int i = 0; i < price.length(); i++) {
@@ -357,45 +428,6 @@ public class MainActivity extends AppCompatActivity {
                     row.addView(pr);
                     body.addView(row);
                 }
-            }
-        }
-        JSONArray masters = cat.optJSONArray("masters");
-        if (masters != null && masters.length() > 0) {
-            TextView mh = text(getString(R.string.masters_label), 13f, 0xFFB8975A, true);
-            mh.setAllCaps(true);
-            LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            mlp.topMargin = dp(PAD12 + 4);
-            mlp.bottomMargin = dp(6);
-            body.addView(mh, mlp);
-
-            for (int k = 0; k < masters.length(); k++) {
-                JSONObject m = masters.optJSONObject(k);
-                if (m == null) continue;
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setGravity(android.view.Gravity.CENTER_VERTICAL);
-
-                ImageView photo = new ImageView(this);
-                int sz = dp(52);
-                LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(sz, sz);
-                plp.rightMargin = dp(PAD12);
-                photo.setLayoutParams(plp);
-                photo.setBackgroundResource(R.drawable.bg_img_ph);
-                photo.setClipToOutline(true);
-                MiniImg.load(photo, abs(m.optString("photo")));
-                row.addView(photo);
-
-                LinearLayout info = new LinearLayout(this);
-                info.setOrientation(LinearLayout.VERTICAL);
-                info.setLayoutParams(new LinearLayout.LayoutParams(0,
-                        LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                info.addView(text(m.optString("name"), 14f, 0xFF1A1A1A, true));
-                String md = m.optString("desc");
-                if (!md.isEmpty()) info.addView(text(md, 11f, 0xFF9E9A94, false));
-                row.addView(info);
-                body.addView(row);
             }
         }
     }
@@ -534,102 +566,60 @@ public class MainActivity extends AppCompatActivity {
         return tv;
     }
 
-    // ---------- Запись ----------
+    // ---------- Запись (сайтова форма «Запись на визит») ----------
 
-    private void showBookingSheet() {
+    private BottomSheetDialog bookingDialog;
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private void showSiteBooking() {
+        if (bookingDialog != null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(this);
-        View content = getLayoutInflater().inflate(R.layout.sheet_booking, null, false);
-        dialog.setContentView(content);
+        bookingDialog = dialog;
 
-        EditText etName = content.findViewById(R.id.et_name);
-        EditText etPhone = content.findViewById(R.id.et_phone);
-        EditText etTime = content.findViewById(R.id.et_time);
-        EditText etComment = content.findViewById(R.id.et_comment);
-        Spinner spService = content.findViewById(R.id.sp_service);
-        Button btnSend = content.findViewById(R.id.btn_lead_send);
-        Button btnOnline = content.findViewById(R.id.btn_online);
+        WebView wv = new WebView(this);
+        WebSettings s = wv.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
+        CookieManager.getInstance().setAcceptCookie(true);
+        wv.addJavascriptInterface(new Bridge(), "AppBridge");
 
-        List<String> items = new ArrayList<>();
-        items.add("Пока не знаю — нужна консультация");
-        synchronized (this) {
-            for (JSONObject s : servicesData) items.add(s.optString("title"));
-        }
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_item, items);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spService.setAdapter(adapter);
-
-        btnSend.setOnClickListener(v -> {
-            String name = etName.getText().toString().trim();
-            String phone = etPhone.getText().toString().trim();
-            if (name.isEmpty() || phone.isEmpty()) {
-                Toast.makeText(this, R.string.fill_fields, Toast.LENGTH_SHORT).show();
-                return;
+        wv.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                Uri uri = request.getUrl();
+                String scheme = uri.getScheme();
+                if (scheme != null && !"http".equals(scheme) && !"https".equals(scheme)) {
+                    openExternal(uri);
+                    return true;
+                }
+                String host = uri.getHost();
+                boolean internal = host != null && (host.equals("studiomi.ru")
+                        || host.endsWith(".studiomi.ru"));
+                if (!internal) {
+                    openExternal(uri);
+                    return true;
+                }
+                return false;
             }
-            Object sel = spService.getSelectedItem();
-            String service = sel == null ? "" : sel.toString();
-            sendLead(dialog, name, phone, service,
-                    etTime.getText().toString().trim(),
-                    etComment.getText().toString().trim());
+
+            @Override
+            public void onPageFinished(WebView view, String url) {
+                view.evaluateJavascript(BOOKING_JS, null);
+            }
         });
 
-        btnOnline.setOnClickListener(v -> {
-            String url = !cfgBook.isEmpty() ? cfgBook : cfgDiki;
-            if (!url.isEmpty()) openExternal(Uri.parse(url));
-            dialog.dismiss();
-        });
-
+        int h = (int) (getResources().getDisplayMetrics().heightPixels * 0.9);
+        dialog.setContentView(wv, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, h));
+        dialog.setOnDismissListener(d -> bookingDialog = null);
         dialog.show();
-    }
 
-    private void sendLead(BottomSheetDialog dialog, String name, String phone,
-                          String service, String time, String comment) {
-        if (cfgHook.isEmpty()) {
-            Toast.makeText(this, R.string.sent_fail, Toast.LENGTH_LONG).show();
-            return;
+        View bs = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
+        if (bs != null) {
+            com.google.android.material.bottomsheet.BottomSheetBehavior.from(bs)
+                    .setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
         }
-        String hook = cfgHook;
-        Toast.makeText(this, "Отправляю…", Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            boolean ok;
-            try {
-                JSONObject payload = new JSONObject();
-                payload.put("name", name);
-                payload.put("phone", phone);
-                payload.put("service", service);
-                payload.put("visit_time", time);
-                payload.put("comment", comment);
-                payload.put("_hp", "");
-                payload.put("_ts", System.currentTimeMillis());
-                payload.put("source", "android-app");
-                payload.put("version", APP_VERSION);
-
-                HttpsURLConnection c =
-                        (HttpsURLConnection) new java.net.URL(hook).openConnection();
-                c.setRequestMethod("POST");
-                c.setRequestProperty("Content-Type", "application/json;charset=utf-8");
-                c.setDoOutput(true);
-                c.setConnectTimeout(10000);
-                c.setReadTimeout(15000);
-                try (OutputStream os = c.getOutputStream()) {
-                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
-                }
-                int code = c.getResponseCode();
-                c.disconnect();
-                ok = code >= 200 && code < 400;
-            } catch (Exception e) {
-                ok = false;
-            }
-            boolean finalOk = ok;
-            runOnUiThread(() -> {
-                if (finalOk) {
-                    Toast.makeText(this, R.string.sent_ok, Toast.LENGTH_LONG).show();
-                    dialog.dismiss();
-                } else {
-                    Toast.makeText(this, R.string.sent_fail, Toast.LENGTH_LONG).show();
-                }
-            });
-        }).start();
+        wv.loadUrl(HOME_URL);
     }
 
     // ---------- JS-мост ----------
@@ -664,6 +654,19 @@ public class MainActivity extends AppCompatActivity {
                 }
                 servicesData = svcList2;
 
+                JSONArray works = o.optJSONArray("works");
+                final List<JSONObject> wlist = new ArrayList<>();
+                if (works != null) {
+                    for (int i = 0; i < works.length(); i++)
+                        wlist.add(works.optJSONObject(i));
+                }
+
+                String heroImg = o.optString("heroImg", "");
+                if (heroImg.isEmpty() && !wlist.isEmpty()) {
+                    heroImg = wlist.get(0).optString("image", "");
+                }
+                final String fHero = abs(heroImg);
+
                 runOnUiThread(() -> {
                     if (!sched.isEmpty()) homeSchedule.setText(sched);
                     if (!addr.isEmpty()) homeAddress.setText(addr);
@@ -671,6 +674,7 @@ public class MainActivity extends AppCompatActivity {
                     svcList.removeAllViews();
                     renderServices();
                     renderContacts();
+                    if (!fHero.isEmpty()) MiniImg.load(homePhoto, fHero);
                 });
 
                 JSONArray promos = o.optJSONArray("promos");
@@ -681,15 +685,16 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> renderPromos(plist));
                 }
 
-                JSONArray works = o.optJSONArray("works");
-                if (works != null) {
-                    final List<JSONObject> wlist = new ArrayList<>();
-                    for (int i = 0; i < works.length(); i++)
-                        wlist.add(works.optJSONObject(i));
-                    runOnUiThread(() -> renderWorks(wlist));
-                }
+                runOnUiThread(() -> renderWorks(wlist));
             } catch (Exception ignored) {
             }
+        }
+
+        @android.webkit.JavascriptInterface
+        public void closeLead() {
+            runOnUiThread(() -> {
+                if (bookingDialog != null) bookingDialog.dismiss();
+            });
         }
     }
 
@@ -706,7 +711,7 @@ public class MainActivity extends AppCompatActivity {
             String n = o.optString("n");
             note.setText(n);
             note.setVisibility(n.isEmpty() ? View.GONE : View.VISIBLE);
-            card.setOnClickListener(v -> showBookingSheet());
+            card.setOnClickListener(v -> showSiteBooking());
             promosRow.addView(card);
         }
     }
