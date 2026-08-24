@@ -79,14 +79,6 @@ public class MainActivity extends AppCompatActivity {
               try{ cfg.works=getPortfolioItems().map(function(w){
                     return {id:w.id||'',image:w.image||''};
               }); }catch(e){ cfg.works=[]; }
-              try{
-                var hs=['.hero__plane--front img','.hero__plane--mid img','.hero__plane--back img'];
-                cfg.heroImg='';
-                for(var i=0;i<hs.length;i++){
-                  var el=document.querySelector(hs[i]);
-                  if(el&&el.getAttribute('src')){cfg.heroImg=el.getAttribute('src');break;}
-                }
-              }catch(e){}
               var pushAll=function(){ try{ AppBridge.data(JSON.stringify(cfg)); }catch(e){} };
 
               // правки CMS приезжают асинхронно: пушим сразу и повторяем,
@@ -119,7 +111,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView netBanner;
     private TextView homeSchedule;
     private TextView homeAddress;
-    private ImageView homePhoto;
+    private TextView bannerSubtitle;
     private LinearLayout promosRow;
     private LinearLayout svcList;
     private LinearLayout worksGrid;
@@ -162,7 +154,7 @@ public class MainActivity extends AppCompatActivity {
         pagesHolder = findViewById(R.id.pages_holder);
         homeSchedule = findViewById(R.id.home_schedule);
         homeAddress = findViewById(R.id.home_address);
-        homePhoto = findViewById(R.id.home_photo);
+        bannerSubtitle = findViewById(R.id.banner_subtitle);
         promosRow = findViewById(R.id.promos_row);
         svcList = findViewById(R.id.svc_list);
         worksGrid = findViewById(R.id.works_grid);
@@ -183,6 +175,11 @@ public class MainActivity extends AppCompatActivity {
 
         Button btnBook = findViewById(R.id.btn_book);
         btnBook.setOnClickListener(v -> showLeadForm(null));
+
+        findViewById(R.id.booking_banner).setOnClickListener(v -> {
+            String url = !cfgBook.isEmpty() ? cfgBook : cfgDiki;
+            if (!url.isEmpty()) openExternal(Uri.parse(url));
+        });
 
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
@@ -1207,12 +1204,6 @@ public class MainActivity extends AppCompatActivity {
                         wlist.add(works.optJSONObject(i));
                 }
 
-                String heroImg = o.optString("heroImg", "");
-                if (heroImg.isEmpty() && !wlist.isEmpty()) {
-                    heroImg = wlist.get(0).optString("image", "");
-                }
-                final String fHero = abs(heroImg);
-
                 runOnUiThread(() -> {
                     if (!sched.isEmpty()) homeSchedule.setText(sched);
                     if (!addr.isEmpty()) homeAddress.setText(addr);
@@ -1220,7 +1211,9 @@ public class MainActivity extends AppCompatActivity {
                     svcList.removeAllViews();
                     renderServices();
                     renderContacts();
-                    if (!fHero.isEmpty()) MiniImg.load(homePhoto, fHero);
+                    bannerSubtitle.setText(cfgBook.isEmpty()
+                            ? getString(R.string.banner_diki_sub)
+                            : getString(R.string.banner_yc_sub));
                 });
 
                 JSONArray promos = o.optJSONArray("promos");

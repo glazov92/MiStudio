@@ -52,16 +52,42 @@
             android:textSize="12sp" />
     </LinearLayout>
 
-    <ImageView
-        android:id="@+id/home_photo"
+    <LinearLayout
+        android:id="@+id/booking_banner"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="12dp"
         android:layout_weight="1"
-        android:minHeight="100dp"
-        android:background="@drawable/bg_card"
-        android:clipToOutline="true"
-        android:scaleType="centerCrop" />
+        android:minHeight="110dp"
+        android:background="@drawable/bg_hero"
+        android:foreground="?attr/selectableItemBackground"
+        android:gravity="center"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="📅"
+            android:textSize="30sp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="@string/banner_booking_title"
+            android:textColor="#FFFFFF"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/banner_subtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:text="@string/banner_diki_sub"
+            android:textColor="#FFF3E0"
+            android:textSize="13sp" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="wrap_content"
