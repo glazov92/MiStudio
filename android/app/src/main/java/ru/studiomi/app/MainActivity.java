@@ -18,6 +18,7 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
+import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -831,7 +832,7 @@ public class MainActivity extends AppCompatActivity {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT));
             }
-            TextView b = makeBadge(item + "   \u2715");
+            LinearLayout b = makeBadge(item);
             b.setOnClickListener(v -> {
                 int id = container.getId();
                 if (id == R.id.badges_services) {
@@ -894,7 +895,7 @@ public class MainActivity extends AppCompatActivity {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT));
             }
-            TextView b = makeBadge(e.getValue() + "   \u2715");
+            LinearLayout b = makeBadge(e.getValue());
             b.setOnClickListener(v -> {
                 selDates.remove(e.getKey());
                 renderDateBadges(container);
