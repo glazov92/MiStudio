@@ -332,66 +332,52 @@ public class MainActivity extends AppCompatActivity {
         for (JSONObject cat : servicesData) {
             LinearLayout c = card();
 
-            // шапка: название + стрелочка = тап разворачивает/сворачивает содержимое
-            LinearLayout head = new LinearLayout(this);
-            head.setOrientation(LinearLayout.HORIZONTAL);
-            head.setBaselineAligned(false);
-            head.setGravity(android.view.Gravity.CENTER_VERTICAL);
-            head.setMinimumHeight(dp(52));
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setBaselineAligned(false);
 
-            TextView titleTv = text(cat.optString("title"), 17f, TEXT, true);
-            titleTv.setLayoutParams(new LinearLayout.LayoutParams(0,
+            LinearLayout left = new LinearLayout(this);
+            left.setOrientation(LinearLayout.VERTICAL);
+            left.setLayoutParams(new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            TextView chev = text("\u25be", 26f, GOLD, true);
-            chev.setPadding(dp(10), 0, dp(2), 0);
-            head.addView(titleTv);
-            head.addView(chev);
-            c.addView(head);
 
-            // описание — отдельная зона: полное, свёрнутое до 3 строк,
-            // под ним «Читать полностью» (видна только если есть что скрывать)
+            // название = тап раскрыть/свернуть содержимое
+            TextView titleTv = text(cat.optString("title"), 17f, TEXT, true);
+            titleTv.setMinHeight(dp(44));
+            titleTv.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            left.addView(titleTv);
+
+            TextView chev = text("\u25be", 26f, GOLD, true);
+            chev.setGravity(android.view.Gravity.CENTER);
+            chev.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.MATCH_PARENT));
+            chev.setPadding(dp(10), 0, dp(4), 0);
+
             String sd = cat.optString("shortDesc");
             if (!sd.isEmpty()) {
-                LinearLayout descWrap = new LinearLayout(this);
-                descWrap.setOrientation(LinearLayout.VERTICAL);
-
+                final boolean longText = lineCountOf(sd, 13f) > 3;
                 final TextView t = text(sd, 13f, BODY, false);
-                t.setMaxLines(3);
-                t.setEllipsize(android.text.TextUtils.TruncateAt.END);
-                descWrap.addView(t);
+                if (longText) {
+                    t.setMaxLines(3);
+                    t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                }
+                left.addView(t);
 
-                final TextView more = text(getString(R.string.read_more), 12f, GOLD, true);
-                more.setVisibility(View.GONE);
-                more.setPadding(0, dp(3), 0, 0);
-                final boolean[] expanded = {false};
-                more.setOnClickListener(v -> {
-                    expanded[0] = !expanded[0];
-                    t.setMaxLines(expanded[0] ? Integer.MAX_VALUE : 3);
-                    t.setEllipsize(expanded[0] ? null
-                            : android.text.TextUtils.TruncateAt.END);
-                    more.setText(expanded[0]
-                            ? getString(R.string.read_less) : getString(R.string.read_more));
-                });
-                t.post(() -> {
-                    if (t.getWidth() == 0) return;
-                    int saved = t.getMaxLines();
-                    t.setMaxLines(Integer.MAX_VALUE);
-                    int wSpec = View.MeasureSpec.makeMeasureSpec(t.getWidth(),
-                            View.MeasureSpec.EXACTLY);
-                    t.measure(wSpec, View.MeasureSpec.makeMeasureSpec(0,
-                            View.MeasureSpec.UNSPECIFIED));
-                    int lines = t.getLineCount();
-                    t.setMaxLines(saved);
-                    if (lines > 3) more.setVisibility(View.VISIBLE);
-                });
-                descWrap.addView(more);
-
-                LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT);
-                dlp.topMargin = dp(4);
-                descWrap.setLayoutParams(dlp);
-                c.addView(descWrap);
+                if (longText) {
+                    final TextView more = text(getString(R.string.read_more), 12f, GOLD, true);
+                    more.setPadding(0, dp(3), 0, 0);
+                    final boolean[] expanded = {false};
+                    more.setOnClickListener(v -> {
+                        expanded[0] = !expanded[0];
+                        t.setMaxLines(expanded[0] ? Integer.MAX_VALUE : 3);
+                        t.setEllipsize(expanded[0] ? null
+                                : android.text.TextUtils.TruncateAt.END);
+                        more.setText(expanded[0]
+                                ? getString(R.string.read_less) : getString(R.string.read_more));
+                    });
+                    left.addView(more);
+                }
             }
 
             // тело (мастера + прайс) — лениво при первом раскрытии
@@ -399,7 +385,13 @@ public class MainActivity extends AppCompatActivity {
             body.setOrientation(LinearLayout.VERTICAL);
             body.setVisibility(View.GONE);
             final boolean[] built = {false};
-            head.setOnClickListener(v -> {
+
+            row.addView(left);
+            row.addView(chev);
+            c.addView(row);
+            c.addView(body);
+
+            View.OnClickListener toggle = v -> {
                 boolean opening = body.getVisibility() != View.VISIBLE;
                 if (opening && !built[0]) {
                     buildServiceBody(cat, body);
@@ -407,8 +399,9 @@ public class MainActivity extends AppCompatActivity {
                 }
                 body.setVisibility(opening ? View.VISIBLE : View.GONE);
                 chev.setText(opening ? "\u25b4" : "\u25be");
-            });
-            c.addView(body);
+            };
+            titleTv.setOnClickListener(toggle);
+            chev.setOnClickListener(toggle);
             svcList.addView(c);
         }
     }
@@ -493,6 +486,20 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+    }
+
+    /** Число строк текста при заданном размере шрифта (не зависит от видимости вьюхи). */
+    private int lineCountOf(String text, float sp) {
+        android.text.TextPaint tp = new android.text.TextPaint();
+        tp.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, sp,
+                getResources().getDisplayMetrics()));
+        int wPx = (int) (getResources().getDisplayMetrics().widthPixels - dp(100));
+        wPx = Math.max(wPx, dp(120));
+        android.text.StaticLayout sl = android.text.StaticLayout.Builder
+                .obtain(text, 0, text.length(), tp, wPx)
+                .setAlignment(android.text.Layout.Alignment.ALIGN_NORMAL)
+                .build();
+        return sl.getLineCount();
     }
 
     private void renderWorks(List<JSONObject> items) {
