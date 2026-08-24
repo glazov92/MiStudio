@@ -87,7 +87,31 @@ public class MainActivity extends AppCompatActivity {
                   if(el&&el.getAttribute('src')){cfg.heroImg=el.getAttribute('src');break;}
                 }
               }catch(e){}
-              try{ AppBridge.data(JSON.stringify(cfg)); }catch(e){}
+              var pushAll=function(){ try{ AppBridge.data(JSON.stringify(cfg)); }catch(e){} };
+
+              // правки CMS приезжают асинхронно: пушим сразу и повторяем,
+              // когда сайт применил серверные данные (editorApplyServerData)
+              pushAll();
+              try{
+                if(typeof window.editorApplyServerData==='function' && !window.__appHooked){
+                  window.__appHooked=true;
+                  var orig=window.editorApplyServerData;
+                  window.editorApplyServerData=function(){
+                    var r=orig.apply(this,arguments);
+                    setTimeout(function(){
+                      try{
+                        cfg.services=getServices();
+                        cfg.promos=getPromos().map(function(p){
+                          return {b:p.badge||'',t:p.tag||'',title:p.title||'',d:p.desc||'',n:p.note||''};
+                        });
+                        cfg.works=getPortfolioItems().map(function(w){return {id:w.id||'',image:w.image||''};});
+                      }catch(e){}
+                      pushAll();
+                    },50);
+                  };
+                }
+              }catch(e){}
+              setTimeout(pushAll,4000);
             })();
             """;
 
@@ -307,35 +331,67 @@ public class MainActivity extends AppCompatActivity {
         }
         for (JSONObject cat : servicesData) {
             LinearLayout c = card();
+
+            // шапка: название + стрелочка = тап разворачивает/сворачивает содержимое
             LinearLayout head = new LinearLayout(this);
             head.setOrientation(LinearLayout.HORIZONTAL);
             head.setGravity(android.view.Gravity.CENTER_VERTICAL);
 
-            LinearLayout titles = new LinearLayout(this);
-            titles.setOrientation(LinearLayout.VERTICAL);
-            titles.setLayoutParams(new LinearLayout.LayoutParams(0,
+            TextView titleTv = text(cat.optString("title"), 17f, TEXT, true);
+            titleTv.setLayoutParams(new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            titles.addView(text(cat.optString("title"), 17f, TEXT, true));
+            TextView chev = text("\u25be", 18f, GOLD, true);
+            head.addView(titleTv);
+            head.addView(chev);
+            c.addView(head);
+
+            // описание — отдельная зона: полное, свёрнутое до 3 строк,
+            // под ним «Читать полностью» (видна только если есть что скрывать)
             String sd = cat.optString("shortDesc");
             if (!sd.isEmpty()) {
-                TextView t = text(sd, 13f, BODY, false);
-                // полное описание: свёрнуто до 3 строк, тап раскрывает/сворачивает
+                LinearLayout descWrap = new LinearLayout(this);
+                descWrap.setOrientation(LinearLayout.VERTICAL);
+
+                final TextView t = text(sd, 13f, BODY, false);
                 t.setMaxLines(3);
                 t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+                descWrap.addView(t);
+
+                final TextView more = text(getString(R.string.read_more), 12f, GOLD, true);
+                more.setVisibility(View.GONE);
+                more.setPadding(0, dp(3), 0, 0);
                 final boolean[] expanded = {false};
-                t.setOnClickListener(v -> {
+                more.setOnClickListener(v -> {
                     expanded[0] = !expanded[0];
                     t.setMaxLines(expanded[0] ? Integer.MAX_VALUE : 3);
                     t.setEllipsize(expanded[0] ? null
                             : android.text.TextUtils.TruncateAt.END);
+                    more.setText(expanded[0]
+                            ? getString(R.string.read_less) : getString(R.string.read_more));
                 });
-                titles.addView(t);
-            }
-            TextView chev = text("▾", 18f, GOLD, true);
-            head.addView(titles);
-            head.addView(chev);
-            c.addView(head);
+                t.post(() -> {
+                    if (t.getWidth() == 0) return;
+                    int saved = t.getMaxLines();
+                    t.setMaxLines(Integer.MAX_VALUE);
+                    int wSpec = View.MeasureSpec.makeMeasureSpec(t.getWidth(),
+                            View.MeasureSpec.EXACTLY);
+                    t.measure(wSpec, View.MeasureSpec.makeMeasureSpec(0,
+                            View.MeasureSpec.UNSPECIFIED));
+                    int lines = t.getLineCount();
+                    t.setMaxLines(saved);
+                    if (lines > 3) more.setVisibility(View.VISIBLE);
+                });
+                descWrap.addView(more);
 
+                LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
+                dlp.topMargin = dp(4);
+                descWrap.setLayoutParams(dlp);
+                c.addView(descWrap);
+            }
+
+            // тело (мастера + прайс) — лениво при первом раскрытии
             LinearLayout body = new LinearLayout(this);
             body.setOrientation(LinearLayout.VERTICAL);
             body.setVisibility(View.GONE);
@@ -347,7 +403,7 @@ public class MainActivity extends AppCompatActivity {
                     built[0] = true;
                 }
                 body.setVisibility(opening ? View.VISIBLE : View.GONE);
-                chev.setText(opening ? "▴" : "▾");
+                chev.setText(opening ? "\u25b4" : "\u25be");
             });
             c.addView(body);
             svcList.addView(c);
@@ -684,7 +740,7 @@ public class MainActivity extends AppCompatActivity {
         renderDateBadges(badgesDates);
 
         content.findViewById(R.id.btn_pick_services).setOnClickListener(v -> showServicesDialog());
-        content.findViewById(R.id.btn_add_date).setOnClickListener(v -> showDatePicker());
+        content.findViewById(R.id.btn_add_date).setOnClickListener(v -> showMultiDatePicker());
 
         content.findViewById(R.id.btn_submit).setOnClickListener(v -> {
             String name = etName.getText().toString().trim();
@@ -793,19 +849,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private TextView makeBadge(String text) {
-        TextView b = new TextView(MainActivity.this);
-        b.setText(text);
-        b.setTextColor(0xFFFFFFFF);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-        b.setBackgroundResource(R.drawable.bg_badge);
-        b.setPadding(dp(10), dp(5), dp(10), dp(5));
+    /** Бейдж с крестиком, прижатым к правому краю (не зависит от длины текста). */
+    private LinearLayout makeBadge(String label) {
+        LinearLayout wrap = new LinearLayout(MainActivity.this);
+        wrap.setOrientation(LinearLayout.HORIZONTAL);
+        wrap.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        wrap.setBackgroundResource(R.drawable.bg_badge);
+        wrap.setPadding(dp(10), dp(4), dp(7), dp(4));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.setMargins(0, dp(3), dp(6), dp(3));
-        b.setLayoutParams(lp);
-        return b;
+        wrap.setLayoutParams(lp);
+
+        TextView t = new TextView(MainActivity.this);
+        t.setText(label);
+        t.setTextColor(0xFFFFFFFF);
+        t.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        t.setMaxWidth(dp(200));
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setMaxLines(1);
+        wrap.addView(t);
+
+        TextView x = new TextView(MainActivity.this);
+        x.setText("✕");
+        x.setTextColor(0xFFFFFFFF);
+        x.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        LinearLayout.LayoutParams xlp = new LinearLayout.LayoutParams(-2, -2);
+        xlp.leftMargin = dp(8);
+        x.setLayoutParams(xlp);
+        wrap.addView(x);
+        return wrap;
     }
 
     private void renderDateBadges(LinearLayout container) {
@@ -863,35 +937,179 @@ public class MainActivity extends AppCompatActivity {
         if (cont != null) renderTextBadges(cont, new ArrayList<>(selServices));
     }
 
-    /** Мультивыбор: после каждой выбранной даты календарь открывается снова
-     *  (стартуя с последней выбранной), «Отмена»/«Назад» завершают выбор. */
-    private void showDatePicker() {
-        java.util.Calendar c = java.util.Calendar.getInstance();
-        openDatePicker(c.get(java.util.Calendar.YEAR),
-                c.get(java.util.Calendar.MONTH),
-                c.get(java.util.Calendar.DAY_OF_MONTH));
+    /** Мультикалендарь: один диалог, тапы по дням переключают выделение,
+     *  можно листать месяцы. «Готово» применяет выбор к бейджам формы. */
+    private void showMultiDatePicker() {
+        java.util.Calendar now = java.util.Calendar.getInstance();
+        final int[] viewYear = {now.get(java.util.Calendar.YEAR)};
+        final int[] viewMonth = {now.get(java.util.Calendar.MONTH)}; // 0-based
+
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        int p = dp(PAD16);
+        root.setPadding(p, dp(8), p, dp(PAD12));
+
+        TextView title = text(getString(R.string.lead_dates_label), 16f, TEXT, true);
+        root.addView(title);
+
+        LinearLayout nav = new LinearLayout(this);
+        nav.setOrientation(LinearLayout.HORIZONTAL);
+        nav.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(-1, -2);
+        nlp.topMargin = dp(PAD12);
+        nav.setLayoutParams(nlp);
+
+        TextView prev = text("\u2039", 22f, GOLD, true);
+        TextView monthTv = new TextView(this);
+        monthTv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14);
+        monthTv.setTextColor(TEXT);
+        monthTv.setTypeface(Typeface.DEFAULT_BOLD);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(0, -2, 1f);
+        mlp.gravity = android.view.Gravity.CENTER;
+        monthTv.setLayoutParams(mlp);
+        TextView next = text("\u203a", 22f, GOLD, true);
+        prev.setPadding(dp(12), dp(4), dp(12), dp(4));
+        next.setPadding(dp(12), dp(4), dp(12), dp(4));
+        nav.addView(prev);
+        nav.addView(monthTv);
+        nav.addView(next);
+        root.addView(nav);
+
+        GridLayout grid = new GridLayout(this);
+        grid.setColumnCount(7);
+        GridLayout.LayoutParams glp = new GridLayout.LayoutParams();
+        glp.width = LinearLayout.LayoutParams.MATCH_PARENT;
+        glp.topMargin = dp(PAD12);
+        grid.setLayoutParams(glp);
+        root.addView(grid);
+
+        Runnable applyAndClose = () -> {
+            if (leadDialog != null) {
+                LinearLayout cont = leadDialog.findViewById(R.id.badges_dates);
+                if (cont != null) renderDateBadges(cont);
+            }
+        };
+
+        prev.setOnClickListener(v -> {
+            viewMonth[0]--;
+            if (viewMonth[0] < 0) {
+                viewMonth[0] = 11;
+                viewYear[0]--;
+            }
+            renderMonth(grid, monthTv, viewYear[0], viewMonth[0]);
+        });
+        next.setOnClickListener(v -> {
+            viewMonth[0]++;
+            if (viewMonth[0] > 11) {
+                viewMonth[0] = 0;
+                viewYear[0]++;
+            }
+            renderMonth(grid, monthTv, viewYear[0], viewMonth[0]);
+        });
+
+        renderMonth(grid, monthTv, viewYear[0], viewMonth[0]);
+
+        Button done = new Button(this);
+        done.setText(android.R.string.ok);
+        done.setTextColor(0xFFFFFFFF);
+        done.setBackgroundTintList(android.content.res.ColorStateList.valueOf(GOLD));
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(-1, dp(46));
+        dlp.topMargin = dp(PAD12);
+        done.setLayoutParams(dlp);
+        done.setOnClickListener(v -> {
+            applyAndClose.run();
+            dlgRef.dismiss();
+        });
+        root.addView(done);
+
+        android.app.AlertDialog.Builder b = new android.app.AlertDialog.Builder(this);
+        b.setView(root);
+        b.setCancelable(true);
+        dlgRef = b.create();
+        dlgRef.show();
     }
 
-    private void openDatePicker(int y, int m, int day) {
-        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(this,
-                (view, yy, mm, dd) -> {
-                    String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
-                            yy, mm + 1, dd);
-                    java.util.Calendar picked = java.util.Calendar.getInstance();
-                    picked.set(yy, mm, dd);
-                    String label = new java.text.SimpleDateFormat("d MMMM",
-                            new java.util.Locale("ru")).format(picked.getTime());
-                    selDates.put(key, label);
-                    if (leadDialog != null) {
-                        LinearLayout cont = leadDialog.findViewById(R.id.badges_dates);
-                        if (cont != null) renderDateBadges(cont);
-                    }
-                    // сразу даём выбрать следующую дату
-                    openDatePicker(yy, mm, dd);
-                },
-                y, m, day);
-        dlg.setTitle(R.string.lead_dates_label);
-        dlg.show();
+    private android.app.AlertDialog dlgRef;
+
+    private static final String[] WEEKDAYS = {"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"};
+
+    private void renderMonth(GridLayout grid, TextView monthTv, int year, int month) {
+        grid.removeAllViews();
+        java.text.SimpleDateFormat mf = new java.text.SimpleDateFormat("LLLL yyyy",
+                new java.util.Locale("ru"));
+        java.util.Calendar tmp = java.util.Calendar.getInstance();
+        tmp.set(year, month, 1);
+        String mn = mf.format(tmp.getTime());
+        monthTv.setText(mn.substring(0, 1).toUpperCase() + mn.substring(1));
+
+        for (String wd : WEEKDAYS) {
+            TextView h = new TextView(this);
+            h.setText(wd);
+            h.setGravity(android.view.Gravity.CENTER);
+            h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+            h.setTextColor(GRAY);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
+                    GridLayout.spec(GridLayout.UNDEFINED, 1f),
+                    GridLayout.spec(GridLayout.UNDEFINED, 1f));
+            lp.height = dp(30);
+            h.setLayoutParams(lp);
+            grid.addView(h);
+        }
+
+        java.util.Calendar first = java.util.Calendar.getInstance();
+        first.set(year, month, 1);
+        int firstDow = (first.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7; // Пн=0
+        int daysInMonth = first.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
+        int totalCells = ((firstDow + daysInMonth + 6) / 7) * 7;
+
+        java.util.Calendar today = java.util.Calendar.getInstance();
+
+        for (int cell = 0; cell < totalCells; cell++) {
+            TextView day = new TextView(this);
+            day.setGravity(android.view.Gravity.CENTER);
+            day.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
+                    GridLayout.spec(GridLayout.UNDEFINED, 1f),
+                    GridLayout.spec(GridLayout.UNDEFINED, 1f));
+            lp.height = dp(42);
+            lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+            day.setLayoutParams(lp);
+
+            int dayNum = cell - firstDow + 1;
+            if (dayNum < 1 || dayNum > daysInMonth) {
+                day.setVisibility(View.INVISIBLE);
+                grid.addView(day);
+                continue;
+            }
+            day.setText(String.valueOf(dayNum));
+
+            java.util.Calendar thisDay = java.util.Calendar.getInstance();
+            thisDay.set(year, month, dayNum);
+            String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
+                    year, month + 1, dayNum);
+            boolean selected = selDates.containsKey(key);
+            boolean isToday = today.get(java.util.Calendar.YEAR) == year
+                    && today.get(java.util.Calendar.MONTH) == month
+                    && today.get(java.util.Calendar.DAY_OF_MONTH) == dayNum;
+
+            if (selected) {
+                day.setBackgroundResource(R.drawable.bg_badge);
+                day.setTextColor(0xFFFFFFFF);
+                day.setTypeface(Typeface.DEFAULT_BOLD);
+            } else {
+                day.setTypeface(Typeface.DEFAULT, isToday ? Typeface.BOLD : Typeface.NORMAL);
+                day.setTextColor(isToday ? GOLD : TEXT);
+            }
+
+            day.setOnClickListener(v -> {
+                if (selDates.containsKey(key)) selDates.remove(key);
+                else selDates.put(key,
+                        new java.text.SimpleDateFormat("d MMMM", new java.util.Locale("ru"))
+                                .format(thisDay.getTime()));
+                renderMonth(grid, monthTv, year, month);
+            });
+            grid.addView(day);
+        }
     }
 
     private void submitLead(BottomSheetDialog dialog, JSONObject payload) {

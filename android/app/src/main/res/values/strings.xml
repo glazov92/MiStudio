@@ -34,6 +34,8 @@
     <string name="lead_send">Отправить заявку</string>
     <string name="lead_consent">Оставляя заявку, вы принимаете условия пользовательского соглашения и даёте согласие на обработку персональных данных.</string>
     <string name="services_dialog_title">Выберите услуги</string>
+    <string name="read_more">Читать полностью</string>
+    <string name="read_less">Свернуть</string>
     <string name="err_name">Укажите имя.</string>
     <string name="err_phone">Введите корректный номер телефона.</string>
     <string name="err_email">Проверьте адрес почты или очистите поле.</string>
