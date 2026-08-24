@@ -15,29 +15,11 @@
         android:paddingTop="8dp"
         android:paddingBottom="24dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:text="@string/works_title"
-            android:textColor="@color/text"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="4dp"
-            android:layout_marginTop="2dp"
-            android:text="@string/works_hint"
-            android:textColor="#9E9A94"
-            android:textSize="12sp" />
-
         <LinearLayout
             android:id="@+id/works_grid"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
+            android:layout_marginTop="4dp"
             android:orientation="vertical" />
     </LinearLayout>
 </ScrollView>

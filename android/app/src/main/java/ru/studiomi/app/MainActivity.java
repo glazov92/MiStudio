@@ -38,7 +38,7 @@ import java.util.List;
 public class MainActivity extends AppCompatActivity {
 
     private static final String HOME_URL = "https://studiomi.ru/";
-    private static final String APP_VERSION = "2.2.1";
+    private static final String APP_VERSION = "2.3";
 
     private static final String FALLBACK_PHONE_DISPLAY = "+7 (933) 430-47-77";
     private static final String FALLBACK_DIKIDI = "https://dikidi.net/2049120?p=0.pi";
@@ -51,23 +51,6 @@ public class MainActivity extends AppCompatActivity {
     private static final int PAD12 = 12, PAD16 = 16;
     private static final int GOLD = 0xFFB8975A, TEXT = 0xFF1A1A1A,
             GRAY = 0xFF9E9A94, BODY = 0xFF5A564F;
-
-    private static final String BOOKING_JS = """
-            (function(){
-              var st=document.createElement('style');
-              st.textContent='header.header,footer.footer,#float-root,.mobile-cta,.section,.hero{display:none!important}'
-                +'body{background:#FAF9F6!important}';
-              document.head.appendChild(st);
-              setTimeout(function(){
-                try{ openPopup(document.getElementById('lead-popup')); }catch(e){}
-              },700);
-              document.addEventListener('click',function(e){
-                if(e.target&&e.target.closest&&e.target.closest('[data-close-popup]')){
-                  try{ AppBridge.closeLead(); }catch(err){}
-                }
-              },true);
-            })();
-            """;
 
     private static final String DATA_JS = """
             (function(){
@@ -115,7 +98,11 @@ public class MainActivity extends AppCompatActivity {
     private View pageHome, pageServices, pageWorks, pageContacts;
     private FrameLayout pagesHolder;
     private WebView loader;
-    private BottomSheetDialog bookingDialog;
+    private BottomSheetDialog leadDialog;
+    private final java.util.LinkedHashSet<String> selServices = new java.util.LinkedHashSet<>();
+    private final java.util.LinkedHashSet<String> selPromos = new java.util.LinkedHashSet<>();
+    private final java.util.TreeSet<String> selDates = new java.util.TreeSet<>();
+    private int contactTab = 0;
 
     private View[] tabs;
     private int currentTab = TAB_HOME;
@@ -164,7 +151,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_call).setOnClickListener(v -> showCallDialog());
 
         Button btnBook = findViewById(R.id.btn_book);
-        btnBook.setOnClickListener(v -> showSiteBooking());
+        btnBook.setOnClickListener(v -> showLeadForm(null));
 
         toolbar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
@@ -566,62 +553,30 @@ public class MainActivity extends AppCompatActivity {
         return tv;
     }
 
-    // ---------- Запись (сайтова форма «Запись на визит») ----------
+    // ---------- Заявка (нативная копия сайтовой формы) ----------
 
-    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
-    private void showSiteBooking() {
-        if (bookingDialog != null) return;
+    private void showLeadForm(String preselectPromo) {
+        if (leadDialog != null) return;
+        selServices.clear();
+        selPromos.clear();
+        selDates.clear();
+        contactTab = 0;
+
         BottomSheetDialog dialog = new BottomSheetDialog(this);
-        bookingDialog = dialog;
-
-        WebView wv = new WebView(this);
-        WebSettings s = wv.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-        CookieManager.getInstance().setAcceptCookie(true);
-        wv.addJavascriptInterface(new Bridge(), "AppBridge");
-
-        wv.setWebViewClient(new WebViewClient() {
-            @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri uri = request.getUrl();
-                String scheme = uri.getScheme();
-                if (scheme != null && !"http".equals(scheme) && !"https".equals(scheme)) {
-                    openExternal(uri);
-                    return true;
-                }
-                String host = uri.getHost();
-                boolean internal = host != null && (host.equals("studiomi.ru")
-                        || host.endsWith(".studiomi.ru"));
-                if (!internal) {
-                    openExternal(uri);
-                    return true;
-                }
-                return false;
-            }
-
-            @Override
-            public void onPageFinished(WebView view, String url) {
-                view.evaluateJavascript(BOOKING_JS, null);
-            }
-        });
-
-        int h = (int) (getResources().getDisplayMetrics().heightPixels * 0.9);
-        dialog.setContentView(wv, new LinearLayout.LayoutParams(-1, h));
-        dialog.setOnDismissListener(d -> bookingDialog = null);
+        leadDialog = dialog;
+        View content = getLayoutInflater().inflate(R.layout.sheet_lead, null, false);
+        dialog.setContentView(content, new LinearLayout.LayoutParams(-1,
+                (int) (getResources().getDisplayMetrics().heightPixels * 0.92)));
         dialog.show();
-
         View bs = dialog.findViewById(com.google.android.material.R.id.design_bottom_sheet);
         if (bs != null) {
             com.google.android.material.bottomsheet.BottomSheetBehavior<View> bh =
                     com.google.android.material.bottomsheet.BottomSheetBehavior.from(bs);
-            // свайп вниз не закрывает форму: шторка жёстко зафиксирована раскрытой,
-            // контент листается только внутри сайта; закрытие — ✕ или «Назад»
             bh.setHideable(false);
             bh.setState(com.google.android.material.bottomsheet.BottomSheetBehavior.STATE_EXPANDED);
             final com.google.android.material.bottomsheet.BottomSheetBehavior<View> fbh = bh;
-            bh.addBottomSheetCallback(
-                    new com.google.android.material.bottomsheet.BottomSheetBehavior.BottomSheetCallback() {
+            bh.addBottomSheetCallback(new com.google.android.material.bottomsheet
+                    .BottomSheetBehavior.BottomSheetCallback() {
                 @Override
                 public void onStateChanged(@NonNull View sheet, int newState) {
                     if (newState != com.google.android.material.bottomsheet
@@ -636,7 +591,325 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
-        wv.loadUrl(HOME_URL);
+
+        TextView tabPhone = content.findViewById(R.id.tab_phone);
+        TextView tabEmail = content.findViewById(R.id.tab_email);
+        TextView tabTg = content.findViewById(R.id.tab_tg);
+        View panePhone = content.findViewById(R.id.pane_phone);
+        View paneEmail = content.findViewById(R.id.et_email);
+        View paneTg = content.findViewById(R.id.pane_tg);
+        EditText etPhone = content.findViewById(R.id.et_phone);
+        EditText etEmail = content.findViewById(R.id.et_email);
+        EditText etTg = content.findViewById(R.id.et_tg);
+        EditText etComment = content.findViewById(R.id.et_comment);
+        LinearLayout badgesServices = content.findViewById(R.id.badges_services);
+        LinearLayout badgesPromos = content.findViewById(R.id.badges_promos);
+        LinearLayout badgesDates = content.findViewById(R.id.badges_dates);
+        LinearLayout promosBlock = content.findViewById(R.id.promos_block);
+
+        View[] tabViews = {tabPhone, tabEmail, tabTg};
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            tabViews[i].setOnClickListener(v -> {
+                contactTab = idx;
+                for (int k = 0; k < 3; k++) {
+                    boolean on = k == idx;
+                    TextView tv = (TextView) tabViews[k];
+                    tv.setBackgroundResource(on ? R.drawable.bg_badge : R.drawable.bg_card);
+                    tv.setTextColor(on ? 0xFFFFFFFF : 0xFF9E9A94);
+                }
+                panePhone.setVisibility(idx == 0 ? View.VISIBLE : View.GONE);
+                paneEmail.setVisibility(idx == 1 ? View.VISIBLE : View.GONE);
+                paneTg.setVisibility(idx == 2 ? View.VISIBLE : View.GONE);
+            });
+        }
+        tabPhone.setBackgroundResource(R.drawable.bg_badge);
+        tabPhone.setTextColor(0xFFFFFFFF);
+        tabEmail.setTextColor(0xFF9E9A94);
+        tabTg.setTextColor(0xFF9E9A94);
+
+        etPhone.addTextChangedListener(new android.text.TextWatcher() {
+            private boolean editing;
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int a, int b, int c) {
+            }
+
+            @Override
+            public void afterTextChanged(android.text.Editable e) {
+                if (editing) return;
+                editing = true;
+                String digits = e.toString().replaceAll("[^0-9]", "");
+                if (digits.length() > 10) digits = digits.substring(0, 10);
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < digits.length(); i++) {
+                    if (i == 0) sb.append('(');
+                    else if (i == 3) sb.append(") ");
+                    else if (i == 6) sb.append('-');
+                    else if (i == 8) sb.append('-');
+                    sb.append(digits.charAt(i));
+                }
+                etPhone.setText(sb.toString());
+                etPhone.setSelection(sb.length());
+                editing = false;
+            }
+        });
+
+        if (preselectPromo != null && !preselectPromo.isEmpty()) {
+            selPromos.add(preselectPromo);
+        }
+        promosBlock.setVisibility(selPromos.isEmpty() ? View.GONE : View.VISIBLE);
+
+        renderBadges(badgesServices, new ArrayList<>(selServices));
+        renderBadges(badgesPromos, new ArrayList<>(selPromos));
+        renderBadges(badgesDates, sortedDateLabels());
+
+        content.findViewById(R.id.btn_pick_services).setOnClickListener(v -> showServicesDialog());
+        content.findViewById(R.id.btn_add_date).setOnClickListener(v -> showDatePicker());
+
+        content.findViewById(R.id.btn_submit).setOnClickListener(v -> {
+            String name = etName.getText().toString().trim();
+            String emailRaw = etEmail.getText().toString().trim();
+            String tgRaw = etTg.getText().toString().replaceAll("^@+", "")
+                    .replaceAll("[^a-zA-Z0-9_]", "");
+            String phoneDigits = etPhone.getText().toString().replaceAll("[^0-9]", "");
+
+            if (name.isEmpty()) {
+                Toast.makeText(getApplicationContext(), R.string.err_name, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            boolean phoneNeeded = contactTab == 0 || !phoneDigits.isEmpty();
+            if (phoneNeeded && phoneDigits.length() != 10) {
+                Toast.makeText(getApplicationContext(), R.string.err_phone, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!emailRaw.isEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(emailRaw).matches()) {
+                Toast.makeText(getApplicationContext(), R.string.err_email, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (!tgRaw.isEmpty() && tgRaw.length() < 5) {
+                Toast.makeText(getApplicationContext(), R.string.err_tg, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (selServices.isEmpty()) {
+                Toast.makeText(getApplicationContext(), R.string.err_services, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (selDates.isEmpty()) {
+                Toast.makeText(getApplicationContext(), R.string.err_dates, Toast.LENGTH_SHORT).show();
+                return;
+            }
+            submitLead(dialog, buildPayload(name, phoneDigits, emailRaw, tgRaw,
+                    etComment.getText().toString().trim()));
+        });
+
+        dialog.setOnDismissListener(d -> leadDialog = null);
+    }
+
+    private JSONObject buildPayload(String name, String phoneDigits, String emailRaw,
+                                    String tgRaw, String comment) {
+        try {
+            String phoneValue = phoneDigits.length() == 10 ? "+7" + phoneDigits : "";
+            String phoneDisplay = phoneDigits.length() == 10
+                    ? "+7 (" + phoneDigits.substring(0, 3) + ") "
+                    + phoneDigits.substring(3, 6) + "-" + phoneDigits.substring(6, 8)
+                    + "-" + phoneDigits.substring(8) : "";
+
+            java.util.List<String> parts = new ArrayList<>();
+            if (!phoneDisplay.isEmpty()) parts.add(phoneDisplay);
+            if (!emailRaw.isEmpty()) parts.add(emailRaw);
+            if (!tgRaw.isEmpty()) parts.add("@" + tgRaw);
+
+            JSONObject o = new JSONObject();
+            o.put("name", name);
+            o.put("contacts", String.join(", ", parts));
+            o.put("phone", phoneValue);
+            o.put("phone_display", phoneDisplay);
+            o.put("email", emailRaw);
+            o.put("telegram", tgRaw.isEmpty() ? "" : "@" + tgRaw);
+            o.put("services", new JSONArray(selServices));
+            o.put("service", String.join(", ", selServices));
+            o.put("promos", new JSONArray(selPromos));
+            o.put("promo", String.join(", ", selPromos));
+            o.put("visit_dates", new JSONArray(selDates));
+            o.put("visit_dates_display", String.join(", ", sortedDateLabels()));
+            o.put("comment", comment);
+            o.put("_hp", "");
+            o.put("_ts", System.currentTimeMillis());
+            o.put("source", "android-app");
+            o.put("version", APP_VERSION);
+            return o;
+        } catch (Exception e) {
+            return new JSONObject();
+        }
+    }
+
+    private List<String> sortedDateLabels() {
+        List<String> labels = new ArrayList<>();
+        java.text.SimpleDateFormat inF = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US);
+        java.text.SimpleDateFormat outF = new java.text.SimpleDateFormat("d MMMM",
+                new java.util.Locale("ru"));
+        try {
+            for (String key : selDates) {
+                labels.add(outF.format(inF.parse(key)));
+            }
+        } catch (Exception ignored) {
+        }
+        return labels;
+    }
+
+    private void renderBadges(final LinearLayout container, final List<String> items) {
+        container.removeAllViews();
+        LinearLayout row = null;
+        int i = 0;
+        for (final String item : items) {
+            if (i % 2 == 0) {
+                row = new LinearLayout(MainActivity.this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                container.addView(row, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+            TextView b = new TextView(MainActivity.this);
+            b.setText(item + "   \u2715");
+            b.setTextColor(0xFFFFFFFF);
+            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+            b.setBackgroundResource(R.drawable.bg_badge);
+            b.setPadding(dp(10), dp(5), dp(10), dp(5));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT);
+            lp.setMargins(0, dp(3), dp(6), dp(3));
+            b.setLayoutParams(lp);
+            b.setOnClickListener(v -> {
+                int id = container.getId();
+                if (id == R.id.badges_services) {
+                    selServices.remove(item);
+                } else if (id == R.id.badges_promos) {
+                    selPromos.remove(item);
+                } else {
+                    selDates.remove(toDateKey(item));
+                }
+                renderBadges(container, id == R.id.badges_dates
+                        ? sortedDateLabels() : new ArrayList<>(itemsSetFor(container)));
+                syncPromosBlock();
+            });
+            row.addView(b);
+            i++;
+        }
+    }
+
+    private java.util.Set<String> itemsSetFor(LinearLayout container) {
+        int id = container.getId();
+        if (id == R.id.badges_services) return selServices;
+        if (id == R.id.badges_promos) return selPromos;
+        return selDates;
+    }
+
+    private void syncPromosBlock() {
+        if (leadDialog == null) return;
+        View block = leadDialog.findViewById(R.id.promos_block);
+        if (block != null && selPromos.isEmpty()) block.setVisibility(View.GONE);
+    }
+
+    private String toDateKey(String ruLabel) {
+        java.text.SimpleDateFormat inF = new java.text.SimpleDateFormat("d MMMM",
+                new java.util.Locale("ru"));
+        java.text.SimpleDateFormat outF = new java.text.SimpleDateFormat("yyyy-MM-dd",
+                java.util.Locale.US);
+        try {
+            return outF.format(inF.parse(ruLabel));
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private void showServicesDialog() {
+        List<String> titles = new ArrayList<>();
+        synchronized (this) {
+            for (JSONObject s : servicesData) titles.add(s.optString("title"));
+        }
+        if (titles.isEmpty()) titles.add("Нужна консультация");
+        boolean[] checked = new boolean[titles.size()];
+        for (int i = 0; i < titles.size(); i++) checked[i] = selServices.contains(titles.get(i));
+
+        new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.services_dialog_title)
+                .setMultiChoiceItems(titles.toArray(new String[0]), checked,
+                        (d, which, isChecked) -> {
+                            if (isChecked) selServices.add(titles.get(which));
+                            else selServices.remove(titles.get(which));
+                        })
+                .setPositiveButton(android.R.string.ok, (d, w) -> refreshServiceBadges())
+                .setNegativeButton(android.R.string.cancel, (d, w) -> refreshServiceBadges())
+                .show();
+    }
+
+    private void refreshServiceBadges() {
+        if (leadDialog == null) return;
+        LinearLayout cont = leadDialog.findViewById(R.id.badges_services);
+        if (cont != null) renderBadges(cont, new ArrayList<>(selServices));
+    }
+
+    private void showDatePicker() {
+        java.util.Calendar c = java.util.Calendar.getInstance();
+        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(this,
+                (view, y, m, day) -> {
+                    String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
+                            y, m + 1, day);
+                    selDates.add(key);
+                    if (leadDialog != null) {
+                        LinearLayout cont = leadDialog.findViewById(R.id.badges_dates);
+                        if (cont != null) renderBadges(cont, sortedDateLabels());
+                    }
+                },
+                c.get(java.util.Calendar.YEAR),
+                c.get(java.util.Calendar.MONTH),
+                c.get(java.util.Calendar.DAY_OF_MONTH));
+        dlg.show();
+    }
+
+    private void submitLead(BottomSheetDialog dialog, JSONObject payload) {
+        if (cfgHook.isEmpty()) {
+            Toast.makeText(this, R.string.sent_fail, Toast.LENGTH_LONG).show();
+            return;
+        }
+        String hook = cfgHook;
+        Toast.makeText(this, "Отправляю…", Toast.LENGTH_SHORT).show();
+        new Thread(() -> {
+            boolean ok;
+            try {
+                HttpsURLConnection c =
+                        (HttpsURLConnection) new java.net.URL(hook).openConnection();
+                c.setRequestMethod("POST");
+                c.setRequestProperty("Content-Type", "application/json;charset=utf-8");
+                c.setDoOutput(true);
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(15000);
+                try (OutputStream os = c.getOutputStream()) {
+                    os.write(payload.toString().getBytes(StandardCharsets.UTF_8));
+                }
+                int code = c.getResponseCode();
+                c.disconnect();
+                ok = code >= 200 && code < 400;
+            } catch (Exception e) {
+                ok = false;
+            }
+            boolean finalOk = ok;
+            runOnUiThread(() -> {
+                if (finalOk) {
+                    Toast.makeText(MainActivity.this, R.string.sent_ok, Toast.LENGTH_LONG).show();
+                    if (leadDialog != null) leadDialog.dismiss();
+                } else {
+                    Toast.makeText(MainActivity.this, R.string.sent_fail, Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
     }
 
     // ---------- JS-мост ----------
@@ -705,13 +978,6 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception ignored) {
             }
         }
-
-        @android.webkit.JavascriptInterface
-        public void closeLead() {
-            runOnUiThread(() -> {
-                if (bookingDialog != null) bookingDialog.dismiss();
-            });
-        }
     }
 
     private void renderPromos(List<JSONObject> items) {
@@ -727,7 +993,7 @@ public class MainActivity extends AppCompatActivity {
             String n = o.optString("n");
             note.setText(n);
             note.setVisibility(n.isEmpty() ? View.GONE : View.VISIBLE);
-            card.setOnClickListener(v -> showSiteBooking());
+            card.setOnClickListener(v -> showLeadForm(o.optString("title")));
             promosRow.addView(card);
         }
     }
