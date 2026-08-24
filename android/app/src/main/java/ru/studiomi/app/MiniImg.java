@@ -34,11 +34,15 @@ public final class MiniImg {
         iv.setImageResource(R.drawable.bg_img_ph);
         iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
         EX.execute(() -> {
-            Bitmap b = CACHE.get(url);
-            if (b == null) {
-                b = fetch(url);
-                if (b == null) return;
-                CACHE.put(url, b);
+            Bitmap cached2 = CACHE.get(url);
+            final Bitmap b;
+            if (cached2 != null) {
+                b = cached2;
+            } else {
+                Bitmap fetched = fetch(url);
+                if (fetched == null) return;
+                CACHE.put(url, fetched);
+                b = fetched;
             }
             iv.post(() -> {
                 if (url.equals(iv.getTag())) iv.setImageBitmap(b);
