@@ -139,5 +139,5 @@ https://твой-сайт.ru/?edit=FZF6MGgNAq4mU653tHkPvCSP
 
 ---
 
-*Ключ админки: `?edit=FZF6MGgNAq4mU653tHkPvCSP` (хранится в `config.js`).*
+*Ключ админки: ссылка вида `https://studiomi.ru/?edit=FZF6MGgNAq4mU653tHkPvCSP`. Ключ проверяется сервером и нигде не хранится в коде сайта.*
 *Запуск и настройка сайта на хостинге — в `DEPLOY-ADMINVPS.md`.*

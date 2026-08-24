@@ -46,6 +46,5 @@ const EDITOR_CONFIG = {
             return '';
         }
     }
-    EDITOR_CONFIG.secretKey = editorUnlock('UFNDdlBrSHQzNTZVbTRxQU5nR002RlpG');
-    EDITOR_CONFIG.serverSync.key = editorUnlock('UFNDdlBrSHQzNTZVbTRxQU5nR002RlpG');
+    EDITOR_CONFIG.serverSync.key = '';  // ключ не хранится в браузере: авторизация через action=auth (сессия)
 })();

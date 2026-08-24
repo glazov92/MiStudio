@@ -7,21 +7,46 @@
    ========================================================================== */
 
 let EDITOR_ACTIVE = false;
+let EDITOR_MODE = false;   /* подтверждено сервером (action=auth) */
 let EDITOR_ELEMENTS = { texts: [], images: [] };
 
-function editorModeActive(searchStr) {
+/* Кандидат ключа из URL: ?edit=КЛЮЧ, голый ?КЛЮЧ или ?x=КЛЮЧ */
+function editorCandidateFromUrl() {
     try {
-        const key = EDITOR_CONFIG.secretKey;
-        const p = new URLSearchParams(searchStr !== undefined ? searchStr : location.search);
-        if (p.get('edit') === key) return true;        // ?edit=КЛЮЧ
-        if (p.has(key)) return true;                   // ?КЛЮЧ (голый ключ)
-        for (const v of p.values()) {
-            if (v === key) return true;                // ?x=КЛЮЧ
+        const p = new URLSearchParams(location.search);
+        const e = p.get('edit');
+        if (e) return e;
+        for (const [k, v] of p) {
+            if (!v && k.length >= 12) return k;
+            if (v && v.length >= 12 && k !== 'test') return v;
         }
-        return false;
-    } catch (e) {
-        return false;
-    }
+    } catch (err) { /* ignore */ }
+    return null;
+}
+
+/* Проверка ключа НА СЕРВЕРЕ — ключ не хранится и не проверяется в браузере */
+function editorTryAuth(candidate) {
+    if (!candidate || !editorSyncUrl()) return;
+    const url = editorSyncUrl() + (editorSyncUrl().indexOf('?') >= 0 ? '&' : '?') +
+        'action=auth&k=' + encodeURIComponent(candidate);
+    fetch(url, { method: 'GET', cache: 'no-store' })
+        .then(r => r.json())
+        .then(j => {
+            if (j && j.ok) {
+                EDITOR_MODE = true;
+                editorScan();
+                activateEditor();
+                editorToast('Режим редактирования включён. Наведите на текст или картинку и нажмите.');
+            } else {
+                editorToast('Неверный ключ админки. Проверь ссылку.', true);
+            }
+        })
+        .catch(() => { /* сервер недоступен — страница остаётся обычным сайтом */ });
+}
+
+/* Совместимость: активность редактора теперь определяется сервером */
+function editorModeActive() {
+    return EDITOR_MODE;
 }
 
 function editorLoadStore() {
@@ -745,7 +770,10 @@ function editorExit() {
     try {
         const url = new URL(location.href);
         url.searchParams.delete('edit');
-        url.searchParams.delete(EDITOR_CONFIG.secretKey);
+        /* голый ключ в имени параметра тоже убираем */
+        for (const k of Array.from(url.searchParams.keys())) {
+            if (k.length >= 12 && !url.searchParams.get(k)) url.searchParams.delete(k);
+        }
         location.href = url.toString();
     } catch (e) {
         location.href = location.pathname + location.hash;
@@ -1056,23 +1084,18 @@ window.MiEditorData = EDITOR_STORE;
 try { editorApplySaved(); } catch (e) { /* не критично */ }
 
 document.addEventListener('DOMContentLoaded', () => {
-    try {
-        if (!editorModeActive() && location.search) {
-            const qp = new URLSearchParams(location.search);
-            const editVal = qp.get('edit');
-            const keyAttempt = location.search.indexOf(EDITOR_CONFIG.secretKey.slice(0, 5)) !== -1;
-            if (editVal !== null && editVal !== '' && editVal !== EDITOR_CONFIG.secretKey) {
-                editorToast('Неверный ключ админки. Проверь ключ и попробуй ещё раз.', true);
-            } else if (editVal === '' || keyAttempt) {
-                editorToast('Не тот адрес: в конце адреса добавь ?edit=КЛЮЧ (или просто ?КЛЮЧ).', true);
-            }
-        }
-    } catch (e) { /* подсказка — не критично */ }
     editorApplySaved();
-    if (editorModeActive()) {
-        editorScan();
-        activateEditor();
+
+    /* Авторизация редактора: ключ проверяет сервер */
+    const candidate = editorCandidateFromUrl();
+    if (candidate !== null) {
+        if (editorSyncUrl()) {
+            editorTryAuth(candidate);
+        } else {
+            editorToast('Админка работает только на хостинге (нужен content-sync.php).', true);
+        }
     }
+
     editorSyncPull().then(server => {
         if (server) editorApplyServerData(server);
     });

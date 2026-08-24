@@ -719,23 +719,94 @@ function maybeSendChanges($items) {
     return count($items);
 }
 
+/* ==========================================================================
+   Авторизация редактора (с 24.08.2026 ключ НЕ хранится в браузере)
+   Фронт стучится GET action=auth&k=<ключ> → сервер сверяет и открывает
+   PHP-сессию; дальнейшие сохранения идут по сессии. Прямой доступ по ключу
+   в POST оставлен для совместимости (скрипты/миграции).
+   ========================================================================== */
+
+function cmsSessionStart() {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    return session_status() === PHP_SESSION_ACTIVE;
+}
+
+function cmsSessionValid() {
+    if (session_status() === PHP_SESSION_NONE) {
+        @session_start();
+    }
+    return !empty($_SESSION['cms_auth']);
+}
+
+/* Ключ ИЛИ живая сессия */
+function isAuthorized($providedKey) {
+    if ($providedKey === CMS_KEY) return true;
+    return cmsSessionValid();
+}
+
+/* Учёт НЕудачных попыток авторизации (защита от перебора):
+   не более $max за $window секунд; успех обнулять не обязан. */
+function throttleAuthFail($max = 20, $window = 60) {
+    $f = dirname(STORE_FILE) . '/.auth-fails';
+    $now = microtime(true);
+    $hits = array();
+    if (is_file($f)) {
+        $hits = @json_decode((string) @file_get_contents($f), true);
+        if (!is_array($hits)) $hits = array();
+        $hits = array_values(array_filter($hits, function ($t) use ($now, $window) {
+            return is_numeric($t) && ($now - (float) $t) < $window;
+        }));
+    }
+    if (count($hits) >= $max) {
+        respond(array('ok' => false, 'error' => 'slow down'), 429);
+    }
+}
+
+function registerAuthFail() {
+    $f = dirname(STORE_FILE) . '/.auth-fails';
+    $now = microtime(true);
+    $hits = array();
+    if (is_file($f)) {
+        $hits = @json_decode((string) @file_get_contents($f), true);
+        if (!is_array($hits)) $hits = array();
+        $hits = array_values(array_filter($hits, function ($t) use ($now) {
+            return is_numeric($t) && ($now - (float) $t) < 60;
+        }));
+    }
+    $hits[] = $now;
+    @file_put_contents($f, json_encode($hits), LOCK_EX);
+}
+
 $method = isset($_SERVER['REQUEST_METHOD']) ? $_SERVER['REQUEST_METHOD'] : 'GET';
 
 if ($method === 'GET') {
-    if (isset($_GET['action']) && $_GET['action'] === 'versions') {
+    /* --- Авторизация редактора: ключ проверяет сервер, в браузер не едет --- */
+    if (isset($_GET['action']) && $_GET['action'] === 'auth') {
         if (!originAllowed()) {
             respond(array('ok' => false, 'error' => 'forbidden'), 403);
         }
-        if ((isset($_GET['key']) ? $_GET['key'] : '') !== CMS_KEY) {
+        $k = isset($_GET['k']) ? (string) $_GET['k'] : '';
+        if ($k !== CMS_KEY) {
+            registerAuthFail();
+            respond(array('ok' => false, 'error' => 'forbidden'), 403);
+        }
+        throttleAuthFail(20, 60);   /* лимит только на успешные частые перезаходы */
+        if (!cmsSessionStart()) {
+            respond(array('ok' => false, 'error' => 'no session'), 500);
+        }
+        $_SESSION['cms_auth'] = true;
+        respond(array('ok' => true));
+    }
+    if (isset($_GET['action']) && $_GET['action'] === 'versions') {
+        if (!originAllowed() || !isAuthorized(isset($_GET['key']) ? $_GET['key'] : '')) {
             respond(array('ok' => false, 'error' => 'forbidden'), 403);
         }
         respond(array('ok' => true, 'versions' => listVersions(), 'max' => MAX_VERSIONS));
     }
     if (isset($_GET['action']) && $_GET['action'] === 'images_inventory') {
-        if (!originAllowed()) {
-            respond(array('ok' => false, 'error' => 'forbidden'), 403);
-        }
-        if ((isset($_GET['key']) ? $_GET['key'] : '') !== CMS_KEY) {
+        if (!originAllowed() || !isAuthorized(isset($_GET['key']) ? $_GET['key'] : '')) {
             respond(array('ok' => false, 'error' => 'forbidden'), 403);
         }
         $currentRefs = array_flip(collectImageRefs(readStore()));
@@ -765,7 +836,7 @@ if ($method === 'POST') {
     }
 
     $key = isset($body['key']) ? (string) $body['key'] : '';
-    if ($key !== CMS_KEY) {
+    if (!isAuthorized($key)) {
         respond(array('ok' => false, 'error' => 'forbidden'), 403);
     }
 
