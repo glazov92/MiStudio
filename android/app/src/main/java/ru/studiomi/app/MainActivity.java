@@ -18,7 +18,6 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.GridLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -336,12 +335,15 @@ public class MainActivity extends AppCompatActivity {
             // шапка: название + стрелочка = тап разворачивает/сворачивает содержимое
             LinearLayout head = new LinearLayout(this);
             head.setOrientation(LinearLayout.HORIZONTAL);
+            head.setBaselineAligned(false);
             head.setGravity(android.view.Gravity.CENTER_VERTICAL);
+            head.setMinimumHeight(dp(52));
 
             TextView titleTv = text(cat.optString("title"), 17f, TEXT, true);
             titleTv.setLayoutParams(new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            TextView chev = text("\u25be", 18f, GOLD, true);
+            TextView chev = text("\u25be", 26f, GOLD, true);
+            chev.setPadding(dp(10), 0, dp(2), 0);
             head.addView(titleTv);
             head.addView(chev);
             c.addView(head);
@@ -976,10 +978,9 @@ public class MainActivity extends AppCompatActivity {
         nav.addView(next);
         root.addView(nav);
 
-        GridLayout grid = new GridLayout(this);
-        grid.setColumnCount(7);
-        GridLayout.LayoutParams glp = new GridLayout.LayoutParams();
-        glp.width = LinearLayout.LayoutParams.MATCH_PARENT;
+        LinearLayout grid = new LinearLayout(this);
+        grid.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams glp = new LinearLayout.LayoutParams(-1, -2);
         glp.topMargin = dp(PAD12);
         grid.setLayoutParams(glp);
         root.addView(grid);
@@ -1034,7 +1035,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String[] WEEKDAYS = {"Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"};
 
-    private void renderMonth(GridLayout grid, TextView monthTv, int year, int month) {
+    private void renderMonth(LinearLayout grid, TextView monthTv, int year, int month) {
         grid.removeAllViews();
         java.text.SimpleDateFormat mf = new java.text.SimpleDateFormat("LLLL yyyy",
                 new java.util.Locale("ru"));
@@ -1043,73 +1044,79 @@ public class MainActivity extends AppCompatActivity {
         String mn = mf.format(tmp.getTime());
         monthTv.setText(mn.substring(0, 1).toUpperCase() + mn.substring(1));
 
+        // шапка с днями недели
+        LinearLayout hrow = new LinearLayout(this);
+        hrow.setOrientation(LinearLayout.HORIZONTAL);
         for (String wd : WEEKDAYS) {
             TextView h = new TextView(this);
             h.setText(wd);
             h.setGravity(android.view.Gravity.CENTER);
             h.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
             h.setTextColor(GRAY);
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
-                    GridLayout.spec(GridLayout.UNDEFINED, 1f),
-                    GridLayout.spec(GridLayout.UNDEFINED, 1f));
-            lp.height = dp(30);
-            h.setLayoutParams(lp);
-            grid.addView(h);
+            h.setLayoutParams(new LinearLayout.LayoutParams(0, dp(28), 1f));
+            hrow.addView(h);
         }
+        grid.addView(hrow, new LinearLayout.LayoutParams(-1, -2));
 
         java.util.Calendar first = java.util.Calendar.getInstance();
         first.set(year, month, 1);
         int firstDow = (first.get(java.util.Calendar.DAY_OF_WEEK) + 5) % 7; // Пн=0
         int daysInMonth = first.getActualMaximum(java.util.Calendar.DAY_OF_MONTH);
-        int totalCells = ((firstDow + daysInMonth + 6) / 7) * 7;
+        int weeks = (firstDow + daysInMonth + 6) / 7;
 
         java.util.Calendar today = java.util.Calendar.getInstance();
 
-        for (int cell = 0; cell < totalCells; cell++) {
-            TextView day = new TextView(this);
-            day.setGravity(android.view.Gravity.CENTER);
-            day.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
-            GridLayout.LayoutParams lp = new GridLayout.LayoutParams(
-                    GridLayout.spec(GridLayout.UNDEFINED, 1f),
-                    GridLayout.spec(GridLayout.UNDEFINED, 1f));
-            lp.height = dp(42);
-            lp.setMargins(dp(2), dp(2), dp(2), dp(2));
-            day.setLayoutParams(lp);
+        for (int w = 0; w < weeks; w++) {
+            LinearLayout wr = new LinearLayout(this);
+            wr.setOrientation(LinearLayout.HORIZONTAL);
+            wr.setLayoutParams(new LinearLayout.LayoutParams(-1, -2));
 
-            int dayNum = cell - firstDow + 1;
-            if (dayNum < 1 || dayNum > daysInMonth) {
-                day.setVisibility(View.INVISIBLE);
-                grid.addView(day);
-                continue;
+            for (int d = 0; d < 7; d++) {
+                int cellIdx = w * 7 + d;
+                int dayNum = cellIdx - firstDow + 1;
+                final TextView day = new TextView(this);
+                day.setGravity(android.view.Gravity.CENTER);
+                day.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(42), 1f);
+                lp.setMargins(dp(2), dp(2), dp(2), dp(2));
+                day.setLayoutParams(lp);
+
+                if (dayNum < 1 || dayNum > daysInMonth) {
+                    day.setVisibility(View.INVISIBLE);
+                    wr.addView(day);
+                    continue;
+                }
+                day.setText(String.valueOf(dayNum));
+
+                java.util.Calendar thisDay = java.util.Calendar.getInstance();
+                thisDay.set(year, month, dayNum);
+                final String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
+                        year, month + 1, dayNum);
+                boolean selected = selDates.containsKey(key);
+                boolean isToday = today.get(java.util.Calendar.YEAR) == year
+                        && today.get(java.util.Calendar.MONTH) == month
+                        && today.get(java.util.Calendar.DAY_OF_MONTH) == dayNum;
+
+                if (selected) {
+                    day.setBackgroundResource(R.drawable.bg_badge);
+                    day.setTextColor(0xFFFFFFFF);
+                    day.setTypeface(Typeface.DEFAULT_BOLD);
+                } else {
+                    day.setTypeface(Typeface.DEFAULT,
+                            isToday ? Typeface.BOLD : Typeface.NORMAL);
+                    day.setTextColor(isToday ? GOLD : TEXT);
+                }
+
+                day.setOnClickListener(v -> {
+                    if (selDates.containsKey(key)) selDates.remove(key);
+                    else selDates.put(key,
+                            new java.text.SimpleDateFormat("d MMMM", new java.util.Locale("ru"))
+                                    .format(thisDay.getTime()));
+                    renderMonth(grid, monthTv, year, month);
+                });
+                wr.addView(day);
             }
-            day.setText(String.valueOf(dayNum));
-
-            java.util.Calendar thisDay = java.util.Calendar.getInstance();
-            thisDay.set(year, month, dayNum);
-            String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
-                    year, month + 1, dayNum);
-            boolean selected = selDates.containsKey(key);
-            boolean isToday = today.get(java.util.Calendar.YEAR) == year
-                    && today.get(java.util.Calendar.MONTH) == month
-                    && today.get(java.util.Calendar.DAY_OF_MONTH) == dayNum;
-
-            if (selected) {
-                day.setBackgroundResource(R.drawable.bg_badge);
-                day.setTextColor(0xFFFFFFFF);
-                day.setTypeface(Typeface.DEFAULT_BOLD);
-            } else {
-                day.setTypeface(Typeface.DEFAULT, isToday ? Typeface.BOLD : Typeface.NORMAL);
-                day.setTextColor(isToday ? GOLD : TEXT);
-            }
-
-            day.setOnClickListener(v -> {
-                if (selDates.containsKey(key)) selDates.remove(key);
-                else selDates.put(key,
-                        new java.text.SimpleDateFormat("d MMMM", new java.util.Locale("ru"))
-                                .format(thisDay.getTime()));
-                renderMonth(grid, monthTv, year, month);
-            });
-            grid.addView(day);
+            grid.addView(wr, new LinearLayout.LayoutParams(-1, -2));
         }
     }
 
