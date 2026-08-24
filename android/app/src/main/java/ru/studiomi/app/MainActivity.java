@@ -131,6 +131,8 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // статус-бар и системные бары НЕ перекрывают приложение (targetSdk 35 включает edge-to-edge)
+        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(getWindow(), true);
         setContentView(R.layout.activity_main);
 
         toolbar = findViewById(R.id.toolbar);

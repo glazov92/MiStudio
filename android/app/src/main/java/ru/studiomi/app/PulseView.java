@@ -18,7 +18,7 @@ import java.util.List;
 
 public class PulseView extends View {
 
-    private static final long PERIOD_MS = 20000; // волны раз в 20 секунд
+    private static final long PERIOD_MS = 5000; // волны раз в 5 секунд
     private static final long BURST_STAGGER_MS = 350;
     private static final long RING_DURATION_MS = 1600;
     private static final int RINGS_PER_BURST = 3;

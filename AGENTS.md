@@ -96,7 +96,8 @@ MiStudio/
   - **Работы**: сетка 2 колонки фото портфолио (MiniImg: http+data:base64, кэш, даунскейл до ~1100px), тап → полноэкранный просмотрщик (AlertDialog на чёрном).
   - **Контакты**: карточки телефон(ы)→tel:, часы работы, адрес→geo:/Яндекс.Карты, кружки VK(#0077FF)/TG(#229ED9) из CONFIG.vkUrl/tgUrl, кнопка онлайн-записи (bookingUrl→dikidiUrl).
 - **Таб-бар v2.2.1 — кастомный флекс** (`nav_bar.xml`, styles NavTab/NavTabLabel): LinearLayout из 4 табов (weight=1) + слот `call_slot` 76dp по центру с кнопкой 58dp и PulseView 150dp (clipChildren=false по всей цепочке — кольца свободно выходят за бар). Ничего не налезает на соседние табы. Выделение таба — `setSelected()` + selector nav_item (state_selected).
-- **PulseView (v2.2.2)**: волны из 3 колец при старте и затем раз в 20 секунд (PERIOD_MS=20000).
+- **PulseView (v2.2.2)**: волны из 3 колец при старте и затем **раз в 5 секунд** (PERIOD_MS=5000; v2.2.3).
+- **Системные бары не перекрывают приложение (v2.2.3)**: `WindowCompat.setDecorFitsSystemWindows(true)` в onCreate + `fitsSystemWindows` на корневом FrameLayout — targetSdk 35 включает edge-to-edge на Android 15+, из-за чего статус-бар налезал на тулбар. Статус-бар окрашен в цвет приложения (#FAF9F6, светлые иконки через windowLightStatusBar в теме).
 - **Шторка заявки не закрывается свайпом вниз (v2.2.2)**: BottomSheetBehavior setHideable(false) + колбэк возвращает STATE_EXPANDED при попытке свернуть — иначе жест свайпа конфликтовал со скроллом формы сайта. Закрытие: ✕ в попапе (closeLead) или «Назад».
 - **Главная без скролла (v2.2.1)**: LinearLayout вместо ScrollView; фото `home_photo` weight=1 (резиновое, minHeight 100dp) занимает всё свободное место; «О студии» и hint убраны.
 - **Главная v2.2**: + фото с сайта (`home_photo`, 190dp) — берётся из hero-картинок страницы (`hero__plane--front/mid/back img` через мост), фолбэк — первое фото портфолио.
@@ -105,7 +106,7 @@ MiStudio/
 - Форма записи (кнопка «Записаться») — нативный BottomSheet: имя/телефон/услуга(Spinner из getServices())/время/комментарий → POST на CONFIG.leadWebhookUrl (`source:'android-app'`) → беседа VK+email; вторая кнопка онлайн-запись.
 - Ограничение v2.1: раз видимых WebView больше нет, админ-CMS с телефона недоступна (работает на сайте в браузере). Оффлайн: нативные страницы показывают заглушку «Нет сети», ⟳ перезагружает данные.
 - Сборка: GitHub Actions `.github/workflows/android-apk.yml`; артефакт всегда, на теге `v*` — Release. Подпись: `android/signing/mistudio.p12` в приватном репо (пароль в app/build.gradle; репо не публиковать).
-- Версии: versionCode/versionName в `android/app/build.gradle`. История: v1.0(1) обёртка; v1.1(2) табы-скролл; v1.1.1(3) без PTR+сайтная форма; v1.1.2(4) фикс spy; v2.0(5) раздельные экраны; v2.1(6) всё нативное+загрузчик; v2.2(7) звонок в баре/фото/мастера сверху/сайтова форма; **v2.2.2(8) — волны раз в 20 сек, шторка заявки не сворачивается свайпом**.
+- Версии: versionCode/versionName в `android/app/build.gradle`. История: v1.0(1) обёртка; v1.1(2) табы-скролл; v1.1.1(3) без PTR+сайтная форма; v1.1.2(4) фикс spy; v2.0(5) раздельные экраны; v2.1(6) всё нативное+загрузчик; v2.2(7) звонок в баре/фото/мастера сверху/сайтова форма; v2.2.2(8) волны 20с+фикс шторки; **v2.2.3(9) — бары не перекрывают контент (decorFitsSystemWindows), волны раз в 5 сек**.
 - minSdk 24, targetSdk 35, applicationId `ru.studiomi.app`, material 1.12.0, Java 17.
 
 ## Не делать в v1.0
