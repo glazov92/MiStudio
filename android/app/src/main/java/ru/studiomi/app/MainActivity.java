@@ -10,20 +10,14 @@ import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.webkit.CookieManager;
-import android.webkit.ValueCallback;
-import android.webkit.WebChromeClient;
 import android.webkit.WebResourceError;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -31,31 +25,31 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.OutputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-
-import javax.net.ssl.HttpsURLConnection;
 
 public class MainActivity extends AppCompatActivity {
 
     private static final String HOME_URL = "https://studiomi.ru/";
-    private static final int FILE_CHOOSER_CODE = 101;
-
-    private static final String APP_VERSION = "2.1";
+    private static final String APP_VERSION = "2.2.1";
 
     private static final String FALLBACK_PHONE_DISPLAY = "+7 (933) 430-47-77";
     private static final String FALLBACK_DIKIDI = "https://dikidi.net/2049120?p=0.pi";
 
-    private static final int PAD16 = 16;
-    private static final int PAD12 = 12;
+    private static final int TAB_HOME = 0;
+    private static final int TAB_SERVICES = 1;
+    private static final int TAB_WORKS = 2;
+    private static final int TAB_CONTACTS = 3;
+
+    private static final int PAD12 = 12, PAD16 = 16;
+    private static final int GOLD = 0xFFB8975A, TEXT = 0xFF1A1A1A,
+            GRAY = 0xFF9E9A94, BODY = 0xFF5A564F;
 
     private static final String BOOKING_JS = """
             (function(){
@@ -76,7 +70,6 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String DATA_JS = """
             (function(){
-              var push=function(obj){ try{ AppBridge.data(JSON.stringify(obj)); }catch(e){} };
               var cfg={};
               try{
                 if(typeof CONFIG!=='undefined'){
@@ -105,11 +98,11 @@ public class MainActivity extends AppCompatActivity {
                   if(el&&el.getAttribute('src')){cfg.heroImg=el.getAttribute('src');break;}
                 }
               }catch(e){}
-              push(cfg);
+              try{ AppBridge.data(JSON.stringify(cfg)); }catch(e){}
             })();
             """;
 
-    private BottomNavigationView nav;
+    private androidx.appcompat.widget.Toolbar toolbar;
     private TextView netBanner;
     private TextView homeSchedule;
     private TextView homeAddress;
@@ -120,9 +113,11 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout contactsList;
     private View pageHome, pageServices, pageWorks, pageContacts;
     private FrameLayout pagesHolder;
-    private androidx.appcompat.widget.Toolbar toolbar;
     private WebView loader;
-    private ValueCallback<Uri[]> fileCallback;
+    private BottomSheetDialog bookingDialog;
+
+    private View[] tabs;
+    private int currentTab = TAB_HOME;
 
     private volatile List<String> cfgPhones = new ArrayList<>();
     private volatile String cfgHook = "";
@@ -130,7 +125,6 @@ public class MainActivity extends AppCompatActivity {
     private volatile String cfgBook = "";
     private volatile String cfgVk = "";
     private volatile String cfgTg = "";
-    private volatile String cfgAddress = "";
     private volatile List<JSONObject> servicesData = new ArrayList<>();
 
     @Override
@@ -138,14 +132,13 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        nav = findViewById(R.id.nav);
+        toolbar = findViewById(R.id.toolbar);
         netBanner = findViewById(R.id.net_banner);
         pageHome = findViewById(R.id.page_home);
         pageServices = findViewById(R.id.page_services);
         pageWorks = findViewById(R.id.page_works);
         pageContacts = findViewById(R.id.page_contacts);
         pagesHolder = findViewById(R.id.pages_holder);
-        toolbar = findViewById(R.id.toolbar);
         homeSchedule = findViewById(R.id.home_schedule);
         homeAddress = findViewById(R.id.home_address);
         homePhoto = findViewById(R.id.home_photo);
@@ -153,6 +146,19 @@ public class MainActivity extends AppCompatActivity {
         svcList = findViewById(R.id.svc_list);
         worksGrid = findViewById(R.id.works_grid);
         contactsList = findViewById(R.id.contacts_list);
+
+        tabs = new View[]{
+                findViewById(R.id.tab_home),
+                findViewById(R.id.tab_services),
+                findViewById(R.id.tab_works),
+                findViewById(R.id.tab_contacts)
+        };
+        int[] tabIds = {R.id.tab_home, R.id.tab_services, R.id.tab_works, R.id.tab_contacts};
+        for (int i = 0; i < tabs.length; i++) {
+            final int which = i;
+            tabs[i].setOnClickListener(v -> selectTab(which));
+        }
+        findViewById(R.id.btn_call).setOnClickListener(v -> showCallDialog());
 
         Button btnBook = findViewById(R.id.btn_book);
         btnBook.setOnClickListener(v -> showSiteBooking());
@@ -165,30 +171,40 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        findViewById(R.id.btn_call).setOnClickListener(v -> showCallDialog());
-
-        nav.setOnItemSelectedListener(item -> {
-            showPage(item.getItemId());
-            return true;
-        });
-
-        positionCallButton();
-
         initLoader();
-        showPage(R.id.nav_home);
+        selectTab(TAB_HOME);
     }
 
-    private void positionCallButton() {
-        View pulse = findViewById(R.id.pulse);
-        View callWrap = findViewById(R.id.call_wrap);
-        Runnable place = () -> {
-            float navH = nav.getHeight();
-            // центр любой bottom-гравитации вьюхи = центр таб-бара
-            pulse.setTranslationY((pulse.getHeight() - navH) / 2f);
-            callWrap.setTranslationY((callWrap.getHeight() - navH) / 2f);
-        };
-        nav.post(place);
-        nav.addOnLayoutChangeListener((v, l, t, r, b, ol, ot, or2, ob) -> place.run());
+    private void selectTab(int which) {
+        currentTab = which;
+        for (int i = 0; i < tabs.length; i++) {
+            tabs[i].setSelected(i == which);
+        }
+        showPage(which);
+    }
+
+    private void showPage(int which) {
+        pageHome.setVisibility(which == TAB_HOME ? View.VISIBLE : View.GONE);
+        pageServices.setVisibility(which == TAB_SERVICES ? View.VISIBLE : View.GONE);
+        pageWorks.setVisibility(which == TAB_WORKS ? View.VISIBLE : View.GONE);
+        pageContacts.setVisibility(which == TAB_CONTACTS ? View.VISIBLE : View.GONE);
+
+        switch (which) {
+            case TAB_HOME:
+                toolbar.setTitle(R.string.app_name);
+                break;
+            case TAB_SERVICES:
+                toolbar.setTitle(R.string.tab_services);
+                if (svcList.getChildCount() == 0) renderServices();
+                break;
+            case TAB_WORKS:
+                toolbar.setTitle(R.string.works_title);
+                break;
+            case TAB_CONTACTS:
+                toolbar.setTitle(R.string.contacts_title);
+                if (contactsList.getChildCount() == 0) renderContacts();
+                break;
+        }
     }
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
@@ -207,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
         loader.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return true; // загрузчик никуда не ходит
+                return true;
             }
 
             @Override
@@ -227,24 +243,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void reloadLoader() {
         if (loader != null) loader.reload();
-    }
-
-    private void showPage(int itemId) {
-        pageHome.setVisibility(itemId == R.id.nav_home ? View.VISIBLE : View.GONE);
-        pageServices.setVisibility(itemId == R.id.nav_services ? View.VISIBLE : View.GONE);
-        pageWorks.setVisibility(itemId == R.id.nav_works ? View.VISIBLE : View.GONE);
-        pageContacts.setVisibility(itemId == R.id.nav_contacts ? View.VISIBLE : View.GONE);
-        if (itemId == R.id.nav_services && svcList.getChildCount() == 0) renderServices();
-        if (itemId == R.id.nav_contacts && contactsList.getChildCount() == 0) renderContacts();
-    }
-
-    private static boolean isInternalHost(String host) {
-        return host.equals("studiomi.ru")
-                || host.equals("www.studiomi.ru")
-                || host.endsWith(".studiomi.ru")
-                || host.equals("yandex.ru")
-                || host.endsWith(".yandex.ru")
-                || host.endsWith(".yastatic.net");
     }
 
     private void openExternal(Uri uri) {
@@ -272,7 +270,7 @@ public class MainActivity extends AppCompatActivity {
         List<String> phones = new ArrayList<>(cfgPhones);
         if (phones.isEmpty()) phones.add(FALLBACK_PHONE_DISPLAY);
         String[] items = phones.toArray(new String[0]);
-        new AlertDialog.Builder(this)
+        new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.calling)
                 .setItems(items, (d, which) ->
                         openExternal(Uri.parse("tel:" + normalizedPhone(items[which]))))
@@ -305,9 +303,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void renderServices() {
+        svcList.removeAllViews();
         if (servicesData.isEmpty()) {
-            TextView empty = text(getString(R.string.net_banner), 13f, 0xFF9E9A94, false);
-            svcList.addView(empty);
+            svcList.addView(text(getString(R.string.net_banner), 13f, GRAY, false));
             return;
         }
         for (JSONObject cat : servicesData) {
@@ -320,14 +318,14 @@ public class MainActivity extends AppCompatActivity {
             titles.setOrientation(LinearLayout.VERTICAL);
             titles.setLayoutParams(new LinearLayout.LayoutParams(0,
                     LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-            titles.addView(text(cat.optString("title"), 17f, 0xFF1A1A1A, true));
+            titles.addView(text(cat.optString("title"), 17f, TEXT, true));
             String sd = cat.optString("shortDesc");
             if (!sd.isEmpty()) {
-                TextView t = text(sd, 13f, 0xFF5A564F, false);
+                TextView t = text(sd, 13f, BODY, false);
                 t.setMaxLines(3);
                 titles.addView(t);
             }
-            TextView chev = text("▾", 18f, 0xFFB8975A, true);
+            TextView chev = text("▾", 18f, GOLD, true);
             head.addView(titles);
             head.addView(chev);
             c.addView(head);
@@ -353,7 +351,7 @@ public class MainActivity extends AppCompatActivity {
     private void buildServiceBody(JSONObject cat, LinearLayout body) {
         JSONArray masters = cat.optJSONArray("masters");
         if (masters != null && masters.length() > 0) {
-            TextView mh = text(getString(R.string.masters_label), 13f, 0xFFB8975A, true);
+            TextView mh = text(getString(R.string.masters_label), 13f, GOLD, true);
             mh.setAllCaps(true);
             LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -382,9 +380,9 @@ public class MainActivity extends AppCompatActivity {
                 info.setOrientation(LinearLayout.VERTICAL);
                 info.setLayoutParams(new LinearLayout.LayoutParams(0,
                         LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                info.addView(text(m.optString("name"), 14f, 0xFF1A1A1A, true));
+                info.addView(text(m.optString("name"), 14f, TEXT, true));
                 String md = m.optString("desc");
-                if (!md.isEmpty()) info.addView(text(md, 11f, 0xFF9E9A94, false));
+                if (!md.isEmpty()) info.addView(text(md, 11f, GRAY, false));
                 row.addView(info);
                 body.addView(row);
             }
@@ -394,7 +392,7 @@ public class MainActivity extends AppCompatActivity {
             for (int i = 0; i < price.length(); i++) {
                 JSONObject sec = price.optJSONObject(i);
                 if (sec == null) continue;
-                TextView sh = text(sec.optString("section"), 13f, 0xFFB8975A, true);
+                TextView sh = text(sec.optString("section"), 13f, GOLD, true);
                 sh.setAllCaps(true);
                 LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
@@ -416,12 +414,12 @@ public class MainActivity extends AppCompatActivity {
                     names.setOrientation(LinearLayout.VERTICAL);
                     names.setLayoutParams(new LinearLayout.LayoutParams(0,
                             LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-                    names.addView(text(it.optString("name"), 14f, 0xFF1A1A1A, false));
+                    names.addView(text(it.optString("name"), 14f, TEXT, false));
                     String meta = it.optString("meta");
-                    if (!meta.isEmpty()) names.addView(text(meta, 11f, 0xFF9E9A94, false));
+                    if (!meta.isEmpty()) names.addView(text(meta, 11f, GRAY, false));
                     row.addView(names);
 
-                    TextView pr = text(it.optString("price"), 14f, 0xFFB8975A, true);
+                    TextView pr = text(it.optString("price"), 14f, GOLD, true);
                     pr.setLayoutParams(new LinearLayout.LayoutParams(
                             LinearLayout.LayoutParams.WRAP_CONTENT,
                             LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -435,7 +433,7 @@ public class MainActivity extends AppCompatActivity {
     private void renderWorks(List<JSONObject> items) {
         worksGrid.removeAllViews();
         if (items.isEmpty()) {
-            worksGrid.addView(text(getString(R.string.net_banner), 13f, 0xFF9E9A94, false));
+            worksGrid.addView(text(getString(R.string.net_banner), 13f, GRAY, false));
             return;
         }
         List<String> urls = new ArrayList<>();
@@ -484,8 +482,8 @@ public class MainActivity extends AppCompatActivity {
 
         for (String phone : cfgPhones) {
             LinearLayout c = card();
-            c.addView(text("📞 Телефон", 12f, 0xFF9E9A94, false));
-            TextView p = text(phone, 17f, 0xFF1A1A1A, true);
+            c.addView(text("📞 Телефон", 12f, GRAY, false));
+            TextView p = text(phone, 17f, TEXT, true);
             p.setPadding(0, dp(4), 0, 0);
             c.addView(p);
             c.setOnClickListener(v ->
@@ -494,25 +492,24 @@ public class MainActivity extends AppCompatActivity {
         }
 
         LinearLayout schedCard = card();
-        schedCard.addView(text("🕐 Часы работы", 12f, 0xFF9E9A94, false));
-        TextView sched = text(homeSchedule.getText().toString(), 15f, 0xFF1A1A1A, true);
+        schedCard.addView(text("🕐 Часы работы", 12f, GRAY, false));
+        TextView sched = text(homeSchedule.getText().toString(), 15f, TEXT, true);
         sched.setPadding(0, dp(4), 0, 0);
         schedCard.addView(sched);
         contactsList.addView(schedCard);
 
         LinearLayout addrCard = card();
-        addrCard.addView(text("📍 Адрес", 12f, 0xFF9E9A94, false));
-        TextView addr = text(homeAddress.getText().toString(), 15f, 0xFF1A1A1A, true);
+        addrCard.addView(text("📍 Адрес", 12f, GRAY, false));
+        TextView addr = text(homeAddress.getText().toString(), 15f, TEXT, true);
         addr.setPadding(0, dp(4), 0, 0);
         addrCard.addView(addr);
-        TextView mapBtn = text(getString(R.string.open_map), 13f, 0xFFB8975A, true);
+        TextView mapBtn = text(getString(R.string.open_map), 13f, GOLD, true);
         mapBtn.setPadding(0, dp(8), 0, 0);
         addrCard.addView(mapBtn);
         addrCard.setOnClickListener(v -> {
             try {
                 String q = Uri.encode(homeAddress.getText().toString());
-                startActivity(new Intent(Intent.ACTION_VIEW,
-                        Uri.parse("geo:0,0?q=" + q)));
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=" + q)));
             } catch (ActivityNotFoundException e) {
                 openExternal(Uri.parse("https://yandex.ru/maps/?text="
                         + Uri.encode(homeAddress.getText().toString())));
@@ -522,7 +519,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (!cfgVk.isEmpty() || !cfgTg.isEmpty()) {
             LinearLayout soc = card();
-            soc.addView(text("Мы в соцсетях", 12f, 0xFF9E9A94, false));
+            soc.addView(text("Мы в соцсетях", 12f, GRAY, false));
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
             LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
@@ -541,7 +538,7 @@ public class MainActivity extends AppCompatActivity {
             Button b = new Button(this);
             b.setText(R.string.online_booking);
             b.setTextColor(0xFFFFFFFF);
-            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(0xFFB8975A));
+            b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(GOLD));
             LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, dp(50));
             blp.topMargin = dp(4);
@@ -568,9 +565,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ---------- Запись (сайтова форма «Запись на визит») ----------
 
-    private BottomSheetDialog bookingDialog;
-
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     private void showSiteBooking() {
         if (bookingDialog != null) return;
         BottomSheetDialog dialog = new BottomSheetDialog(this);
@@ -609,8 +604,7 @@ public class MainActivity extends AppCompatActivity {
         });
 
         int h = (int) (getResources().getDisplayMetrics().heightPixels * 0.9);
-        dialog.setContentView(wv, new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, h));
+        dialog.setContentView(wv, new LinearLayout.LayoutParams(-1, h));
         dialog.setOnDismissListener(d -> bookingDialog = null);
         dialog.show();
 
@@ -644,15 +638,14 @@ public class MainActivity extends AppCompatActivity {
                 cfgTg = o.optString("tg", "");
                 final String sched = o.optString("schedule", "");
                 final String addr = o.optString("address", "");
-                cfgAddress = addr;
 
                 JSONArray svcs = o.optJSONArray("services");
-                final List<JSONObject> svcList2 = new ArrayList<>();
+                final List<JSONObject> svcData = new ArrayList<>();
                 if (svcs != null) {
                     for (int i = 0; i < svcs.length(); i++)
-                        svcList2.add(svcs.optJSONObject(i));
+                        svcData.add(svcs.optJSONObject(i));
                 }
-                servicesData = svcList2;
+                servicesData = svcData;
 
                 JSONArray works = o.optJSONArray("works");
                 final List<JSONObject> wlist = new ArrayList<>();
@@ -716,16 +709,9 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // ---------- Служебное ----------
-
     private int dp(int v) {
         return Math.round(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v,
                 getResources().getDisplayMetrics()));
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
     }
 
     @Override

@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/bg">
+    android:background="@color/bg"
+    android:clipChildren="false">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -71,40 +72,8 @@
             android:textSize="16sp"
             android:textStyle="bold" />
 
-        <com.google.android.material.bottomnavigation.BottomNavigationView
-            android:id="@+id/nav"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@color/bg"
-            app:labelVisibilityMode="labeled"
-            app:itemIconTint="@color/nav_item"
-            app:itemTextColor="@color/nav_item"
-            app:menu="@menu/bottom_nav" />
+        <include
+            android:id="@+id/nav_bar"
+            layout="@layout/nav_bar" />
     </LinearLayout>
-
-    <ru.studiomi.app.PulseView
-        android:id="@+id/pulse"
-        android:layout_width="150dp"
-        android:layout_height="150dp"
-        android:layout_gravity="bottom|center_horizontal"
-        android:elevation="11dp" />
-
-    <FrameLayout
-        android:id="@+id/call_wrap"
-        android:layout_width="64dp"
-        android:layout_height="64dp"
-        android:layout_gravity="bottom|center_horizontal"
-        android:elevation="12dp">
-
-        <ImageButton
-            android:id="@+id/btn_call"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/bg_call_circle"
-            android:contentDescription="@string/call"
-            android:elevation="4dp"
-            android:padding="17dp"
-            android:scaleType="fitCenter"
-            android:src="@drawable/ic_call_white" />
-    </FrameLayout>
 </FrameLayout>
