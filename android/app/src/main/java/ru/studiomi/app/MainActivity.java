@@ -106,7 +106,8 @@ public class MainActivity extends AppCompatActivity {
     private BottomSheetDialog leadDialog;
     private final java.util.LinkedHashSet<String> selServices = new java.util.LinkedHashSet<>();
     private final java.util.LinkedHashSet<String> selPromos = new java.util.LinkedHashSet<>();
-    private final java.util.TreeSet<String> selDates = new java.util.TreeSet<>();
+    // ключ ISO yyyy-MM-dd -> подпись «d MMMM» (TreeMap держит сортировку)
+    private final java.util.TreeMap<String, String> selDates = new java.util.TreeMap<>();
     private int contactTab = 0;
 
     private View[] tabs;
@@ -678,9 +679,9 @@ public class MainActivity extends AppCompatActivity {
         }
         promosBlock.setVisibility(selPromos.isEmpty() ? View.GONE : View.VISIBLE);
 
-        renderBadges(badgesServices, new ArrayList<>(selServices));
-        renderBadges(badgesPromos, new ArrayList<>(selPromos));
-        renderBadges(badgesDates, sortedDateLabels());
+        renderTextBadges(badgesServices, new ArrayList<>(selServices));
+        renderTextBadges(badgesPromos, new ArrayList<>(selPromos));
+        renderDateBadges(badgesDates);
 
         content.findViewById(R.id.btn_pick_services).setOnClickListener(v -> showServicesDialog());
         content.findViewById(R.id.btn_add_date).setOnClickListener(v -> showDatePicker());
@@ -749,8 +750,8 @@ public class MainActivity extends AppCompatActivity {
             o.put("service", String.join(", ", selServices));
             o.put("promos", new JSONArray(selPromos));
             o.put("promo", String.join(", ", selPromos));
-            o.put("visit_dates", new JSONArray(selDates));
-            o.put("visit_dates_display", String.join(", ", sortedDateLabels()));
+            o.put("visit_dates", new JSONArray(selDates.keySet()));
+            o.put("visit_dates_display", String.join(", ", selDates.values()));
             o.put("comment", comment);
             o.put("_hp", "");
             o.put("_ts", System.currentTimeMillis());
@@ -762,22 +763,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private List<String> sortedDateLabels() {
-        List<String> labels = new ArrayList<>();
-        java.text.SimpleDateFormat inF = new java.text.SimpleDateFormat("yyyy-MM-dd",
-                java.util.Locale.US);
-        java.text.SimpleDateFormat outF = new java.text.SimpleDateFormat("d MMMM",
-                new java.util.Locale("ru"));
-        try {
-            for (String key : selDates) {
-                labels.add(outF.format(inF.parse(key)));
-            }
-        } catch (Exception ignored) {
-        }
-        return labels;
-    }
-
-    private void renderBadges(final LinearLayout container, final List<String> items) {
+    private void renderTextBadges(final LinearLayout container, final List<String> items) {
         container.removeAllViews();
         LinearLayout row = null;
         int i = 0;
@@ -789,59 +775,65 @@ public class MainActivity extends AppCompatActivity {
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT));
             }
-            TextView b = new TextView(MainActivity.this);
-            b.setText(item + "   \u2715");
-            b.setTextColor(0xFFFFFFFF);
-            b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
-            b.setBackgroundResource(R.drawable.bg_badge);
-            b.setPadding(dp(10), dp(5), dp(10), dp(5));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT);
-            lp.setMargins(0, dp(3), dp(6), dp(3));
-            b.setLayoutParams(lp);
-                b.setOnClickListener(v -> {
-                    int id = container.getId();
-                    if (id == R.id.badges_services) {
-                        selServices.remove(item);
-                    } else if (id == R.id.badges_promos) {
-                        selPromos.remove(item);
-                    } else {
-                        selDates.remove(toDateKey(item));
-                    }
-                    renderBadges(container, id == R.id.badges_dates
-                            ? sortedDateLabels() : new ArrayList<>(itemsSetFor(container)));
+            TextView b = makeBadge(item + "   \u2715");
+            b.setOnClickListener(v -> {
+                int id = container.getId();
+                if (id == R.id.badges_services) {
+                    selServices.remove(item);
+                } else if (id == R.id.badges_promos) {
+                    selPromos.remove(item);
+                    refreshPromosRow();
                     syncPromosBlock();
-                    if (id == R.id.badges_promos) refreshPromosRow();
-                });
+                }
+                renderTextBadges(container,
+                        new ArrayList<>(id == R.id.badges_services ? selServices : selPromos));
+            });
             row.addView(b);
             i++;
         }
     }
 
-    private java.util.Set<String> itemsSetFor(LinearLayout container) {
-        int id = container.getId();
-        if (id == R.id.badges_services) return selServices;
-        if (id == R.id.badges_promos) return selPromos;
-        return selDates;
+    private TextView makeBadge(String text) {
+        TextView b = new TextView(MainActivity.this);
+        b.setText(text);
+        b.setTextColor(0xFFFFFFFF);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        b.setBackgroundResource(R.drawable.bg_badge);
+        b.setPadding(dp(10), dp(5), dp(10), dp(5));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(3), dp(6), dp(3));
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void renderDateBadges(LinearLayout container) {
+        container.removeAllViews();
+        LinearLayout row = null;
+        int i = 0;
+        for (final java.util.Map.Entry<String, String> e : selDates.entrySet()) {
+            if (i % 2 == 0) {
+                row = new LinearLayout(MainActivity.this);
+                row.setOrientation(LinearLayout.HORIZONTAL);
+                container.addView(row, new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT));
+            }
+            TextView b = makeBadge(e.getValue() + "   \u2715");
+            b.setOnClickListener(v -> {
+                selDates.remove(e.getKey());
+                renderDateBadges(container);
+            });
+            row.addView(b);
+            i++;
+        }
     }
 
     private void syncPromosBlock() {
         if (leadDialog == null) return;
         View block = leadDialog.findViewById(R.id.promos_block);
         if (block != null && selPromos.isEmpty()) block.setVisibility(View.GONE);
-    }
-
-    private String toDateKey(String ruLabel) {
-        java.text.SimpleDateFormat inF = new java.text.SimpleDateFormat("d MMMM",
-                new java.util.Locale("ru"));
-        java.text.SimpleDateFormat outF = new java.text.SimpleDateFormat("yyyy-MM-dd",
-                java.util.Locale.US);
-        try {
-            return outF.format(inF.parse(ruLabel));
-        } catch (Exception e) {
-            return "";
-        }
     }
 
     private void showServicesDialog() {
@@ -868,24 +860,37 @@ public class MainActivity extends AppCompatActivity {
     private void refreshServiceBadges() {
         if (leadDialog == null) return;
         LinearLayout cont = leadDialog.findViewById(R.id.badges_services);
-        if (cont != null) renderBadges(cont, new ArrayList<>(selServices));
+        if (cont != null) renderTextBadges(cont, new ArrayList<>(selServices));
     }
 
+    /** Мультивыбор: после каждой выбранной даты календарь открывается снова
+     *  (стартуя с последней выбранной), «Отмена»/«Назад» завершают выбор. */
     private void showDatePicker() {
         java.util.Calendar c = java.util.Calendar.getInstance();
-        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(this,
-                (view, y, m, day) -> {
-                    String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
-                            y, m + 1, day);
-                    selDates.add(key);
-                    if (leadDialog != null) {
-                        LinearLayout cont = leadDialog.findViewById(R.id.badges_dates);
-                        if (cont != null) renderBadges(cont, sortedDateLabels());
-                    }
-                },
-                c.get(java.util.Calendar.YEAR),
+        openDatePicker(c.get(java.util.Calendar.YEAR),
                 c.get(java.util.Calendar.MONTH),
                 c.get(java.util.Calendar.DAY_OF_MONTH));
+    }
+
+    private void openDatePicker(int y, int m, int day) {
+        android.app.DatePickerDialog dlg = new android.app.DatePickerDialog(this,
+                (view, yy, mm, dd) -> {
+                    String key = String.format(java.util.Locale.US, "%04d-%02d-%02d",
+                            yy, mm + 1, dd);
+                    java.util.Calendar picked = java.util.Calendar.getInstance();
+                    picked.set(yy, mm, dd);
+                    String label = new java.text.SimpleDateFormat("d MMMM",
+                            new java.util.Locale("ru")).format(picked.getTime());
+                    selDates.put(key, label);
+                    if (leadDialog != null) {
+                        LinearLayout cont = leadDialog.findViewById(R.id.badges_dates);
+                        if (cont != null) renderDateBadges(cont);
+                    }
+                    // сразу даём выбрать следующую дату
+                    openDatePicker(yy, mm, dd);
+                },
+                y, m, day);
+        dlg.setTitle(R.string.lead_dates_label);
         dlg.show();
     }
 
@@ -1056,7 +1061,7 @@ public class MainActivity extends AppCompatActivity {
         if (leadDialog != null) {
             LinearLayout cont = leadDialog.findViewById(R.id.badges_promos);
             if (cont != null) {
-                renderBadges(cont, new ArrayList<>(selPromos));
+                renderTextBadges(cont, new ArrayList<>(selPromos));
                 View block = leadDialog.findViewById(R.id.promos_block);
                 if (block != null && !selPromos.isEmpty()) block.setVisibility(View.VISIBLE);
             }
