@@ -44,6 +44,8 @@
     <string name="refresh">Обновить</string>
     <string name="net_banner">Нет сети — проверьте интернет и нажмите ⟳ вверху</string>
     <string name="masters_label">Мастера</string>
+    <string name="works_title">Работы мастеров</string>
+    <string name="contacts_title">Контакты</string>
     <string name="online_booking">Онлайн-запись</string>
     <string name="open_map">Показать на Яндекс.Карте</string>
 </resources>
