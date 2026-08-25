@@ -8,6 +8,7 @@
 
 function masterRowHtml(m, idx) {
     m = m || {};
+    const ph = m.photo || '';
     return `
         <div class="ed-master-row" data-ed-master>
             <div class="ed-price-sec__head ed-price-sec__head--tag">
@@ -15,7 +16,12 @@ function masterRowHtml(m, idx) {
                 <button type="button" class="ed-mini ed-mini--danger" data-ed-master-del title="Удалить мастера">✕</button>
             </div>
             <input class="ed-input" data-f="name" placeholder="Имя мастера" value="${editorEscapeHtml(m.name || '')}" ${idx === 0 ? 'autofocus' : ''}>
-            <input class="ed-input" data-f="photo" placeholder="Фото (URL)" value="${editorEscapeHtml(m.photo || '')}">
+            <div class="ed-field">
+                <span class="ed-field__label">Фото с компьютера (до ${Math.round((EDITOR_CONFIG.maxImageSize || 3145728) / 1024 / 1024)} МБ)</span>
+                <input type="file" class="ed-file" accept="image/*" data-ed-master-upload>
+            </div>
+            <img data-ed-master-thumb alt="" ${ph ? `src="${editorEscapeHtml(ph)}"` : 'hidden'} style="max-width:110px;display:${ph ? 'block' : 'none'};margin:4px 0;border-radius:8px;">
+            <input class="ed-input" data-f="photo" placeholder="Фото (URL) — или загрузите файлом выше" value="${editorEscapeHtml(ph)}">
             <input class="ed-input" data-f="desc" placeholder="Кто мастер, опыт, образование" value="${editorEscapeHtml(m.desc || '')}">
         </div>`;
 }
@@ -88,6 +94,40 @@ function parsePrice(root) {
 }
 
 function wireServiceForm(root, mastersBox, priceBox) {
+    /* Фото мастера с компьютера — делегировано, работает и для добавленных строк */
+    if (mastersBox) {
+        mastersBox.addEventListener('change', e => {
+            const inp = e.target.closest('[data-ed-master-upload]');
+            if (!inp) return;
+            const row = inp.closest('[data-ed-master]');
+            const file = inp.files && inp.files[0];
+            if (!file) return;
+            if (!file.type || file.type.indexOf('image/') !== 0) {
+                editorToast('Можно загружать только изображения.', true);
+                inp.value = '';
+                return;
+            }
+            if (file.size > (EDITOR_CONFIG.maxImageSize || 3145728)) {
+                editorToast(`Файл больше ${Math.round((EDITOR_CONFIG.maxImageSize || 3145728) / 1024 / 1024)} МБ — выберите меньший.`, true);
+                inp.value = '';
+                return;
+            }
+            editorToast('Загружаю фото мастера…');
+            inp.disabled = true;
+            editorUploadImageFile(file, (src, uploaded) => {
+                inp.disabled = false;
+                if (!src) { editorToast('Не удалось прочитать изображение.', true); return; }
+                if (!uploaded) editorToast('Сервер недоступен - фото сохранено локально.', true);
+                row.querySelector('[data-f="photo"]').value = src;
+                const th = row.querySelector('[data-ed-master-thumb]');
+                th.src = src;
+                th.hidden = false;
+                th.style.display = 'block';
+                editorToast(uploaded ? 'Фото мастера загружено - не забудьте 💾 Сохранить на панели.' : '');
+            });
+        });
+    }
+
     root.addEventListener('click', e => {
         const delM = e.target.closest('[data-ed-master-del]');
         if (delM) { delM.closest('[data-ed-master]').remove(); return; }
