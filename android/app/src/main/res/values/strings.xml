@@ -10,6 +10,7 @@
     <string name="tab_works">Работы</string>
     <string name="tab_contacts">Контакты</string>
     <string name="home_tagline">Студия красоты · Нижний Новгород</string>
+    <string name="home_tagline_caps">BEAUTY ATELIER · НИЖНИЙ НОВГОРОД</string>
     <string name="fallback_schedule">Ежедневно 10:00–21:00</string>
     <string name="fallback_address">Н. Новгород, Пятигорская улица, 14</string>
     <string name="home_promos_title">Акции</string>

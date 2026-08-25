@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="250dp"
+    android:layout_width="252dp"
     android:layout_height="wrap_content"
     android:layout_marginEnd="12dp"
     android:background="@drawable/bg_card"
@@ -41,7 +41,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:textColor="@color/text"
-        android:textSize="16sp"
+        android:textSize="15sp"
         android:textStyle="bold" />
 
     <TextView
@@ -65,7 +65,7 @@
     <Button
         android:id="@+id/btn_add_promo"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
+        android:layout_height="38dp"
         android:layout_marginTop="10dp"
         android:textSize="13sp"
         android:textStyle="bold" />

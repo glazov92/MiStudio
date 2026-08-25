@@ -10,98 +10,160 @@
     android:paddingTop="10dp"
     android:paddingBottom="12dp">
 
-    <LinearLayout
+    <!-- Hero: тёмная премиум-карточка -->
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_hero"
-        android:orientation="vertical"
-        android:padding="18dp">
+        android:background="@drawable/bg_hero_dark">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/app_name"
-            android:textColor="#FFFFFF"
-            android:textSize="30sp"
-            android:textStyle="bold" />
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="6dp"
+            android:layout_marginBottom="-14dp"
+            android:alpha="0.28"
+            android:text="✦"
+            android:textColor="@color/gold"
+            android:textSize="64sp" />
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="@string/home_tagline"
-            android:textColor="#FFF3E0"
-            android:textSize="13sp" />
+            android:orientation="vertical"
+            android:padding="20dp">
 
-        <TextView
-            android:id="@+id/home_schedule"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="@string/fallback_schedule"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:letterSpacing="0.18"
+                android:text="@string/home_tagline_caps"
+                android:textColor="@color/gold"
+                android:textSize="10sp" />
 
-        <TextView
-            android:id="@+id/home_address"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:text="@string/fallback_address"
-            android:textColor="#FFFFFF"
-            android:textSize="12sp" />
-    </LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="@string/app_name"
+                android:textColor="#FFFFFF"
+                android:textSize="32sp"
+                android:textStyle="bold" />
 
+            <View
+                android:layout_width="38dp"
+                android:layout_height="3dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_accent_bar" />
+
+            <TextView
+                android:id="@+id/home_schedule"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/fallback_schedule"
+                android:textColor="#CFC7BA"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/home_address"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/fallback_address"
+                android:textColor="#CFC7BA"
+                android:textSize="12sp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- Онлайн-запись: светлая карточка с иконкой в круге -->
     <LinearLayout
         android:id="@+id/booking_banner"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_marginTop="12dp"
+        android:layout_marginTop="14dp"
         android:layout_weight="1"
-        android:minHeight="110dp"
-        android:background="@drawable/bg_hero"
+        android:minHeight="96dp"
+        android:background="@drawable/bg_card"
+        android:elevation="2dp"
         android:foreground="?attr/selectableItemBackground"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_badge">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:text="📅"
+                android:textSize="20sp" />
+        </FrameLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="14dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/banner_booking_title"
+                android:textColor="@color/text"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/banner_subtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="@string/banner_diki_sub"
+                android:textColor="#9E9A94"
+                android:textSize="12sp" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="📅"
-            android:textSize="30sp" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
-            android:text="@string/banner_booking_title"
-            android:textColor="#FFFFFF"
-            android:textSize="19sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/banner_subtitle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="3dp"
-            android:text="@string/banner_diki_sub"
-            android:textColor="#FFF3E0"
-            android:textSize="13sp" />
+            android:text="›"
+            android:textColor="@color/gold"
+            android:textSize="26sp" />
     </LinearLayout>
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Акции -->
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
-        android:text="@string/home_promos_title"
-        android:textColor="@color/text"
-        android:textSize="17sp"
-        android:textStyle="bold" />
+        android:layout_marginTop="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <View
+            android:layout_width="4dp"
+            android:layout_height="16dp"
+            android:background="@drawable/bg_accent_bar" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/home_promos_title"
+            android:textColor="@color/text"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+    </LinearLayout>
 
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="10dp"
         android:overScrollMode="never"
         android:scrollbars="none">
 
@@ -109,8 +171,9 @@
             android:id="@+id/promos_row"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:clipToPadding="false"
             android:orientation="horizontal"
             android:paddingTop="4dp"
-            android:paddingBottom="4dp" />
+            android:paddingBottom="8dp" />
     </HorizontalScrollView>
 </LinearLayout>
