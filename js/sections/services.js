@@ -6,16 +6,29 @@
 
 (function () {
 
+/* Разбор полного имени на части: формат хранения — «Фамилия Имя Отчество».
+   Одиночное слово считаем Именем (админ чаще пишет именно его первым). */
+function splitName3(name) {
+    const p = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (p.length === 1) return { fam: '', im: p[0], otch: '' };
+    return { fam: p[0] || '', im: p[1] || '', otch: p.slice(2).join(' ') };
+}
+
 function masterRowHtml(m, idx) {
     m = m || {};
     const ph = m.photo || '';
+    const n = splitName3(m.name);
     return `
         <div class="ed-master-row" data-ed-master>
             <div class="ed-price-sec__head ed-price-sec__head--tag">
                 <span class="ed-tag">Мастер</span>
                 <button type="button" class="ed-mini ed-mini--danger" data-ed-master-del title="Удалить мастера">✕</button>
             </div>
-            <input class="ed-input" data-f="name" placeholder="Имя мастера" value="${editorEscapeHtml(m.name || '')}" ${idx === 0 ? 'autofocus' : ''}>
+            <div style="display:flex;gap:8px;">
+                <input class="ed-input" data-m="im" placeholder="Имя" value="${editorEscapeHtml(n.im)}" ${idx === 0 ? 'autofocus' : ''} style="min-width:0;">
+                <input class="ed-input" data-m="fam" placeholder="Фамилия" value="${editorEscapeHtml(n.fam)}" style="min-width:0;">
+                <input class="ed-input" data-m="otch" placeholder="Отчество" value="${editorEscapeHtml(n.otch)}" style="min-width:0;">
+            </div>
             <div class="ed-field">
                 <span class="ed-field__label">Фото с компьютера (до ${Math.round((EDITOR_CONFIG.maxImageSize || 3145728) / 1024 / 1024)} МБ)</span>
                 <input type="file" class="ed-file" accept="image/*" data-ed-master-upload>
@@ -69,7 +82,12 @@ function renderPriceBox(box, price) {
 function parseMasters(root) {
     const out = [];
     root.querySelectorAll('[data-ed-master]').forEach(row => {
-        const m = {};
+        const val = sel => { const el = row.querySelector(sel); return el ? el.value.trim() : ''; };
+        /* Имя + Фамилия + Отчество → единая строка «Фамилия Имя Отчество»
+           (в этом порядке имя выводится на сайте) */
+        const m = {
+            name: [val('[data-m="fam"]'), val('[data-m="im"]'), val('[data-m="otch"]')].filter(Boolean).join(' ')
+        };
         row.querySelectorAll('[data-f]').forEach(inp => { m[inp.dataset.f] = inp.value.trim(); });
         if (m.name || m.photo || m.desc) out.push(m);
     });
