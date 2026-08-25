@@ -62,7 +62,7 @@ function openPromoForm(existing) {
             editorSaveJSON('promos', list);
             openPromotionsManager();
             editorRerenderSection('promotions');
-            editorToast('Акции обновлены.');
+            editorToast('Акции применены локально - опубликуйте кнопку Сохранить на панели.');
         });
         rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
     });

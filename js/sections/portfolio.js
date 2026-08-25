@@ -58,7 +58,7 @@ function openPortfolioForm(existing) {
             editorSaveJSON('portfolio', list);
             openPortfolioManager();
             editorRerenderSection('portfolio');
-            editorToast('Портфолио обновлено.');
+            editorToast('Работа применена локально - опубликуйте кнопку Сохранить на панели.');
         });
         rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
     });

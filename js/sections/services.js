@@ -214,7 +214,7 @@ function openServiceForm(existing) {
             editorSaveJSON('services', list);
             openServicesManager();
             editorRerenderSection('services');
-            editorToast('Услуги обновлены.');
+            editorToast('Услуги применены локально - опубликуйте кнопку Сохранить на панели.');
         });
         rootEl.querySelector('[data-ed-cancel]').addEventListener('click', closeEditorModal);
     });

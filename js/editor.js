@@ -300,7 +300,7 @@ function openTextEditor(entry) {
             <textarea class="ed-input ed-textarea" rows="6">${editorEscapeHtml(current)}</textarea>
         </div>
         <div class="ed-actions">
-            <button type="button" class="ed-btn ed-btn--primary" data-ed-save>Сохранить</button>
+            <button type="button" class="ed-btn ed-btn--primary" data-ed-save>Применить</button>
             ${EDITOR_STORE.texts[id] != null ? '<button type="button" class="ed-btn" data-ed-reset>Сбросить к оригиналу</button>' : ''}
             <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Отмена</button>
         </div>`, rootEl => {
@@ -349,7 +349,7 @@ function openPathTextEditor(el) {
             <textarea class="ed-input ed-textarea" rows="5">${editorEscapeHtml(current)}</textarea>
         </div>
         <div class="ed-actions">
-            <button type="button" class="ed-btn ed-btn--primary" data-ed-save>Сохранить</button>
+            <button type="button" class="ed-btn ed-btn--primary" data-ed-save>Применить</button>
             ${EDITOR_STORE.paths[path] != null ? '<button type="button" class="ed-btn" data-ed-reset>Сбросить к оригиналу</button>' : ''}
             <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Отмена</button>
         </div>`, rootEl => {
@@ -368,7 +368,7 @@ function openPathTextEditor(el) {
             const next = editorReadPathValue(path);
             el.textContent = (next != null && String(next) !== '') ? String(next) : (value === '' ? current : value);
             closeEditorModal();
-            editorToast('Сохранено.');
+            editorToast('Применено локально — опубликуйте 💾 на панели.');
         });
 
         rootEl.querySelector('[data-ed-reset]').addEventListener('click', () => {
@@ -736,7 +736,8 @@ function editorBuildPanel() {
             else editorToast('Раздел недоступен на этой странице.', true);
         });
     });
-    panel.querySelector('[data-ed-save]').addEventListener('click', () => {
+    const saveBtn = panel.querySelector('[data-ed-save]');
+    saveBtn.addEventListener('click', () => {
         editorSaveJSON('texts', EDITOR_STORE.texts);
         editorSaveJSON('images', EDITOR_STORE.images);
         if (EDITOR_STORE.paths && Object.keys(EDITOR_STORE.paths).length) editorSaveJSON('paths', EDITOR_STORE.paths);
@@ -744,14 +745,26 @@ function editorBuildPanel() {
         if (EDITOR_STORE.services) editorSaveJSON('services', EDITOR_STORE.services);
         if (EDITOR_STORE.portfolio) editorSaveJSON('portfolio', EDITOR_STORE.portfolio);
         if (EDITOR_STORE.links && Object.keys(EDITOR_STORE.links).length) editorSaveJSON('links', EDITOR_STORE.links);
-        if (editorSyncUrl()) {
-            clearTimeout(editorSyncTimer);
-            editorSyncPush().then(ok => {
-                editorToast(ok ? 'Всё сохранено и опубликовано на сервере ✓' : 'Сохранено локально (сервер недоступен).');
-            });
-        } else {
-            editorToast('Всё сохранено ✓');
+
+        if (!editorSyncUrl()) {
+            editorMarkClean();
+            updateSaveButtonState();
+            editorToast('Всё сохранено локально ✓');
+            return;
         }
+        if (saveBtn.disabled) return;   /* защита от двойного клика */
+        saveBtn.disabled = true;
+        editorToast('Публикую…');
+        editorSyncPush().then(ok => {
+            saveBtn.disabled = false;
+            if (ok) {
+                editorMarkClean();
+                updateSaveButtonState();
+                editorToast('Опубликовано на сервере ✓');
+            } else {
+                editorToast('Сервер перегружен или нет соединения. Правки сохранены локально — попробуйте ещё раз через минуту.', true);
+            }
+        });
     });
     panel.querySelector('[data-ed-history]').addEventListener('click', openHistoryModal);
     panel.querySelector('[data-ed-cleanup]').addEventListener('click', openCleanupModal);
@@ -764,6 +777,18 @@ function editorBuildPanel() {
     });
     panel.querySelector('[data-ed-reset]').addEventListener('click', editorResetAll);
     panel.querySelector('[data-ed-exit]').addEventListener('click', editorExit);
+
+    /* Индикатор несохранённых правок на кнопке 💾 */
+    updateSaveButtonState();
+    document.addEventListener('mi-dirty', updateSaveButtonState);
+
+    window.addEventListener('beforeunload', (e) => {
+        if (editorIsDirty()) {
+            e.preventDefault();
+            e.returnValue = 'Есть правки, не опубликованные на сервере. Точно уйти?';
+            return e.returnValue;
+        }
+    });
 }
 
 function editorExit() {
@@ -943,6 +968,16 @@ function editorApplyPanelOffset() {
     if (!panel) return;
     const h = Math.ceil(panel.getBoundingClientRect().height);
     document.body.style.setProperty('--ed-panel-h', h + 'px');
+}
+
+/* Состояние кнопки 💾: красная точка при непубликованных правках */
+function updateSaveButtonState() {
+    const btn = document.querySelector('#editor-panel [data-ed-save]');
+    if (!btn) return;
+    btn.classList.toggle('is-dirty', editorIsDirty());
+    btn.title = editorIsDirty()
+        ? 'Есть правки, не опубликованные на сервере — нажмите для публикации'
+        : 'Сохранить';
 }
 
 function activateEditor() {

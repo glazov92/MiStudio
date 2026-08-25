@@ -14,7 +14,7 @@ function openLinksManager() {
             ${editorField('Telegram (URL)', links.tg || CONFIG.tgUrl, { name: 'tg', placeholder: 'https://t.me/...' })}
             ${editorField('DiKiDi — онлайн-запись (URL)', links.dikidi || CONFIG.dikidiUrl, { name: 'dikidi', placeholder: 'https://dikidi.net/...' })}
             <div class="ed-actions">
-                <button type="submit" class="ed-btn ed-btn--primary">Сохранить</button>
+                <button type="submit" class="ed-btn ed-btn--primary">Применить</button>
                 <button type="button" class="ed-btn ed-btn--ghost" data-ed-cancel>Отмена</button>
             </div>
         </form>

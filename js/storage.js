@@ -29,10 +29,20 @@ function editorLoadJSON(short, fallback) {
     }
 }
 
+/* Флаг «есть непубликованные правки» */
+let editorDirty = false;
+function editorIsDirty()  { return editorDirty; }
+function editorMarkClean(){ editorDirty = false; }
+
 function editorSaveJSON(short, value) {
     try {
         localStorage.setItem(editorStorageKey(short), JSON.stringify(value));
-        editorScheduleSync();
+        /* Публикация — ТОЛЬКО кнопкой 💾 на панели (см. editorSyncPush).
+           Здесь правка просто живёт в localStorage. */
+        if (!editorDirty) {
+            editorDirty = true;
+            try { document.dispatchEvent(new CustomEvent('mi-dirty')); } catch (e) {}
+        }
         return true;
     } catch (e) {
         editorToast('Хранилище переполнено — изображение слишком большое. Сожмите его или удалите неиспользуемые.', true);
@@ -90,15 +100,30 @@ function editorSyncPull() {
         .catch(() => null);
 }
 
-/* Отправить полный снимок правок на сервер. Возвращает Promise<boolean>. */
-function editorSyncPush() {
+/* Отправить полный снимок правок на сервер. Ретраи: 3 попытки с растущей
+   паузой при сетевых сбоях и кодах 408/429/5xx (DDoS-прокси хостинга иногда
+   отдаёт разовые 502). 403 не ретраится — неверный ключ/сессия. */
+function editorSyncPush(attempt) {
+    attempt = attempt || 1;
     const url = editorSyncUrl();
     if (!url) return Promise.resolve(false);
+    const retriable = st => [0, 408, 429, 500, 502, 503, 504].indexOf(st) !== -1;
     return fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'text/plain' },
         body: JSON.stringify(editorSyncPayload())
-    }).then(r => (r.ok ? true : false)).catch(() => false);
+    }).then(r => {
+        if (r.ok) return true;
+        if (attempt < 3 && retriable(r.status)) {
+            return new Promise(res => setTimeout(() => res(editorSyncPush(attempt + 1)), 1200 * attempt));
+        }
+        return false;
+    }).catch(() => {
+        if (attempt < 3) {
+            return new Promise(res => setTimeout(() => res(editorSyncPush(attempt + 1)), 1200 * attempt));
+        }
+        return false;
+    });
 }
 
 /* Тихая запись текущего хранилища в localStorage — БЕЗ отправки на сервер.
@@ -180,13 +205,6 @@ function editorSyncRestore(version) {
             version: version
         })
     }).then(r => (r.ok ? true : false)).catch(() => false);
-}
-
-let editorSyncTimer = null;
-function editorScheduleSync() {
-    if (!editorSyncUrl()) return;
-    clearTimeout(editorSyncTimer);
-    editorSyncTimer = setTimeout(() => editorSyncPush(), 800);
 }
 
 /* Хранилище-состояние: всегда загружается при загрузке страницы,
